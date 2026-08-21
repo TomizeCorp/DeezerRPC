@@ -70,6 +70,7 @@ extern "C" __attribute__((visibility("default"))) int drpc_set_activity(
     }
 
     discordpp::Activity activity;
+    activity.SetName("Deezer");
     activity.SetType(discordpp::ActivityTypes::Listening);
     activity.SetDetails(safe(details));
     activity.SetState(safe(state));

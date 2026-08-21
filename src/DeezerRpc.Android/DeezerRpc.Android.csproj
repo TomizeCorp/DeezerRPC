@@ -5,8 +5,8 @@
     <OutputType>Exe</OutputType>
     <ApplicationId>com.tomize.deezerrpc</ApplicationId>
     <ApplicationTitle>DeezerRPC</ApplicationTitle>
-    <ApplicationVersion>15</ApplicationVersion>
-    <ApplicationDisplayVersion>1.1.14</ApplicationDisplayVersion>
+    <ApplicationVersion>16</ApplicationVersion>
+    <ApplicationDisplayVersion>1.1.15</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidUseAapt2>true</AndroidUseAapt2>
     <AndroidLinkMode>SdkOnly</AndroidLinkMode>
