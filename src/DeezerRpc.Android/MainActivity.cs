@@ -214,13 +214,13 @@ public sealed class MainActivity : Activity
         discordContent.AddView(discordIcon, new LinearLayout.LayoutParams(Dp(54), Dp(70)));
         var discordText = Vertical(0, 0);
         _discordState = Text("Connexion Discord", 14F, White, bold: true);
-        _discordSubstate = Text("Ouvre Discord et connecte-toi", 11F, Muted);
+        _discordSubstate = Text("Ouvre Discord puis lance une musique", 11F, Muted);
         discordText.AddView(_discordState);
         discordText.AddView(_discordSubstate);
         discordContent.AddView(discordText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1F));
         content.AddView(CardView(discordContent), Margin(top: 12));
 
-        var connect = OutlineButton("Se connecter à Discord");
+        var connect = OutlineButton("Ouvrir Discord");
         connect.Click += (_, _) => OpenDiscord();
         content.AddView(connect, Margin(top: 10, height: 52));
 
@@ -419,7 +419,7 @@ public sealed class MainActivity : Activity
         }
 
         _discordState!.Text = snapshot.DiscordConnected ? "Discord connecté" : "Connexion Discord";
-        _discordSubstate!.Text = snapshot.DiscordConnected ? "Rich Presence active" : "Ouvre Discord et connecte-toi";
+        _discordSubstate!.Text = snapshot.DiscordConnected ? "Rich Presence active" : "Ouvre Discord puis lance une musique";
         _runtimeState!.Text = snapshot.StatusText;
     }
 

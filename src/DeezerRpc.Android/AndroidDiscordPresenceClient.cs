@@ -42,7 +42,12 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
                 assets?.LargeText ?? string.Empty,
                 button?.Label ?? string.Empty,
                 button?.Url ?? string.Empty);
-            error = result == 0 ? string.Empty : "Discord Android a refusé la présence";
+            error = result switch
+            {
+                0 => string.Empty,
+                3 => "Discord Android ne répond pas — ouvre Discord",
+                _ => "Discord Android a refusé la présence"
+            };
             return result == 0;
         }
         catch (DllNotFoundException)
@@ -116,4 +121,3 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
         public static extern void Shutdown();
     }
 }
-

@@ -17,7 +17,8 @@ find_library(
         "${DISCORD_SDK_ROOT}/lib/${ANDROID_ABI}/release"
         "${DISCORD_SDK_ROOT}/lib/${ANDROID_ABI}"
         "${DISCORD_SDK_ROOT}/bin/release/${ANDROID_ABI}"
-    NO_DEFAULT_PATH)
+    NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH)
 
 if(NOT DISCORD_PARTNER_SDK)
     message(FATAL_ERROR "libdiscord_partner_sdk.so was not found for ABI ${ANDROID_ABI}")
@@ -26,4 +27,3 @@ endif()
 add_library(deezerrpc_discord_bridge SHARED discord_bridge.cpp)
 target_include_directories(deezerrpc_discord_bridge PRIVATE "${DISCORD_INCLUDE_DIR}")
 target_link_libraries(deezerrpc_discord_bridge PRIVATE "${DISCORD_PARTNER_SDK}" log android)
-

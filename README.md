@@ -7,11 +7,11 @@ DeezerRPC publie le morceau actuellement joué sur Deezer dans la Rich Presence 
 | Plateforme | Détection Deezer | Rich Presence | Livrable |
 |---|---|---|---|
 | Windows 10/11 | Application Deezer via GSMTC ; navigateurs en option | Fonctionnelle via le compte ouvert dans Discord Desktop | [Télécharger l’EXE Windows](https://github.com/TomizeCorp/DeezerRPC/releases/latest) |
-| Android 7+ | Session média Deezer via `NotificationListenerService` | Prête pour Discord Social SDK 1.10+ | [Télécharger l’APK Android](https://github.com/TomizeCorp/DeezerRPC/releases/latest) ; SDK officiel requis pour publier |
+| Android 7+ | Session média Deezer via `NotificationListenerService` | Fonctionnelle via Discord Social SDK 1.10.18687 | [Télécharger l’APK Android complet](https://github.com/TomizeCorp/DeezerRPC/releases/latest) |
 
 Les fichiers prêts à installer sont disponibles dans la [dernière version GitHub](https://github.com/TomizeCorp/DeezerRPC/releases/latest). Les dossiers `artifacts/` restent volontairement exclus de l’historique Git pour éviter d’alourdir le dépôt.
 
-Le SDK Social Discord est téléchargé depuis le portail de l’application Discord et n’est pas redistribuable dans ce dépôt. L’APK de démonstration compile et détecte Deezer, mais affiche donc clairement « SDK absent » au lieu d’utiliser une méthode non officielle ou un jeton utilisateur.
+Le SDK Social Discord est téléchargé depuis le portail de l’application Discord et son archive n’est pas redistribuée dans ce dépôt. L’APK officiel publié inclut toutefois les bibliothèques d’exécution Android autorisées afin que la Rich Presence fonctionne sans méthode non officielle ni jeton utilisateur.
 
 ## Rich Presence
 
@@ -60,7 +60,7 @@ Discord Social SDK **1.10 ou plus récent** prend en charge Android 7+ et la pub
 ```
 
 5. Construire l’APK avec `./scripts/build-android.ps1`.
-6. Dans l’application, autoriser l’accès média, puis utiliser « Se connecter à Discord » pour ouvrir le compte Discord installé et lancer Deezer. L’Application ID est déjà intégré.
+6. Dans l’application, autoriser l’accès média, ouvrir Discord avec le bouton prévu, puis lancer un morceau dans Deezer. La connexion et la publication sont automatiques ; l’Application ID est déjà intégré.
 
 Le manifeste déclare explicitement `com.discord`, requis par Android 11+, et le pont natif utilise seulement `SetApplicationId` + `UpdateRichPresence` : pas de serveur, OAuth ou jeton utilisateur.
 

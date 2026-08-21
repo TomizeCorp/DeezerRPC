@@ -7,6 +7,10 @@ artifacts/
 *.apk
 *.aab
 vendor/discord-social-sdk/
+src/DeezerRpc.Android/native/build/
+src/DeezerRpc.Android/native/build-ninja/
+src/DeezerRpc.Android/native/prebuilt/
+src/DeezerRpc.Android/native/prebuilt-full/
 *.pfx
 *.p12
 *.jks

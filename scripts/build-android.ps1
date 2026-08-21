@@ -8,7 +8,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $projectRoot 'src\DeezerRpc.Android\DeezerRpc.Android.csproj'
-$nativeRoot = Join-Path $projectRoot 'src\DeezerRpc.Android\native\prebuilt'
+$nativeRoot = Join-Path $projectRoot 'src\DeezerRpc.Android\native\prebuilt-full'
+$discordAar = Join-Path $projectRoot 'vendor\discord-social-sdk\lib\release\discord_partner_sdk.aar'
 $output = Join-Path $projectRoot 'artifacts\android'
 
 if ([string]::IsNullOrWhiteSpace($AndroidSdkDirectory)) {
@@ -17,8 +18,8 @@ if ([string]::IsNullOrWhiteSpace($AndroidSdkDirectory)) {
 if ([string]::IsNullOrWhiteSpace($JavaSdkDirectory)) {
     throw 'JavaSdkDirectory ou JAVA_HOME est requis.'
 }
-if (-not $DetectorOnly -and -not (Test-Path -LiteralPath $nativeRoot)) {
-    throw 'Le pont Discord est absent. Exécutez build-android-native.ps1 ou utilisez -DetectorOnly.'
+if (-not $DetectorOnly -and (-not (Test-Path -LiteralPath $nativeRoot) -or -not (Test-Path -LiteralPath $discordAar))) {
+    throw 'Le pont Discord ou son AAR est absent. Exécutez build-android-native.ps1 après avoir extrait le SDK officiel, ou utilisez -DetectorOnly.'
 }
 
 dotnet build $project `

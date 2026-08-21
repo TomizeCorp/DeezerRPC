@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
@@ -95,8 +96,27 @@ extern "C" __attribute__((visibility("default"))) int drpc_set_activity(
         activity.AddButton(button);
     }
 
-    client->UpdateRichPresence(std::move(activity), [](const discordpp::ClientResult&) {});
-    return 0;
+    struct UpdateResult {
+        std::mutex mutex;
+        std::condition_variable ready;
+        bool completed = false;
+        bool successful = false;
+    };
+    auto update = std::make_shared<UpdateResult>();
+    client->UpdateRichPresence(std::move(activity), [update](const discordpp::ClientResult& result) {
+        {
+            std::lock_guard result_lock(update->mutex);
+            update->successful = result.Successful();
+            update->completed = true;
+        }
+        update->ready.notify_one();
+    });
+
+    std::unique_lock result_lock(update->mutex);
+    if (!update->ready.wait_for(result_lock, std::chrono::seconds(3), [&update] { return update->completed; })) {
+        return 3;
+    }
+    return update->successful ? 0 : 4;
 }
 
 extern "C" __attribute__((visibility("default"))) void drpc_clear_activity() {
@@ -111,4 +131,3 @@ extern "C" __attribute__((visibility("default"))) void drpc_shutdown() {
     stop_callbacks();
     client.reset();
 }
-

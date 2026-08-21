@@ -14,10 +14,10 @@ Dans la rubrique Discord Social SDK de l’application :
 
 1. activez l’intégration ;
 2. téléchargez la version Standalone C++ 1.10+ contenant Android ;
-3. conservez la structure `include/discordpp.h` et les bibliothèques `libdiscord_partner_sdk.so` par ABI ;
+3. conservez `include/discordpp.h` et `lib/release/discord_partner_sdk.aar` ;
 4. exécutez `scripts/build-android-native.ps1`.
 
-La version 1.10 est nécessaire : elle permet au SDK de publier une présence vers le client Discord Android connecté. L’archive propriétaire doit être ajoutée avant de produire l’APK complet ; l’APK « detector-only » ne prétend pas être connecté quand le SDK est absent.
+La version 1.10 est nécessaire : elle permet au SDK de publier une présence vers le client Discord Android connecté. L’archive propriétaire doit être ajoutée avant de produire l’APK complet ; la release officielle inclut l’AAR Android et le pont natif compilé.
 
 ## Vérification visuelle
 
