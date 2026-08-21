@@ -163,7 +163,7 @@ internal sealed class DashboardForm : Form
             Dock = DockStyle.Fill,
             FillColor = Color.FromArgb(18, 21, 24),
             BorderColor = BorderColor,
-            CornerRadius = 12,
+            CornerRadius = 20,
             Padding = new Padding(16, 14, 12, 10),
             Margin = new Padding(2, 0, 2, 2)
         };
@@ -240,7 +240,7 @@ internal sealed class DashboardForm : Form
         subtitle.Padding = new Padding(0, 5, 0, 0);
         titleArea.Controls.Add(subtitle);
         titleArea.Controls.SetChildIndex(subtitle, 0);
-        var toggleCard = new RoundedPanel { Dock = DockStyle.Fill, FillColor = CardColor, BorderColor = BorderColor, CornerRadius = 12, Padding = new Padding(14), Margin = new Padding(14, 8, 0, 10) };
+        var toggleCard = new RoundedPanel { Dock = DockStyle.Fill, FillColor = CardColor, BorderColor = BorderColor, CornerRadius = 20, Padding = new Padding(14), Margin = new Padding(14, 8, 0, 10) };
         var toggleLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.Transparent };
         toggleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         toggleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 54));
@@ -267,7 +267,7 @@ internal sealed class DashboardForm : Form
             Height = 248,
             FillColor = CardColor,
             BorderColor = BorderColor,
-            CornerRadius = 13,
+            CornerRadius = 22,
             Padding = new Padding(18),
             Margin = new Padding(0, 10, 0, 12)
         };
@@ -318,7 +318,7 @@ internal sealed class DashboardForm : Form
         WireClick(discordCard, (_, _) => OpenDiscordDesktop());
         statuses.Controls.Add(discordCard, 0, 0);
         var deezerCard = StatusCard("≋", out _deezerState, out _deezerSubstate);
-        deezerCard.Margin = new Padding(8, 0, 0, 0);
+        deezerCard.Margin = new Padding(8, 0, 0, 2);
         statuses.Controls.Add(deezerCard, 1, 0);
         content.Controls.Add(statuses);
 
@@ -357,7 +357,7 @@ internal sealed class DashboardForm : Form
 
     private Control SettingRow(string title, string subtitle, bool value, Action<bool> changed)
     {
-        var row = new RoundedPanel { Dock = DockStyle.Top, Height = 70, FillColor = CardColor, BorderColor = BorderColor, CornerRadius = 10, Padding = new Padding(17, 9, 14, 8), Margin = new Padding(0, 0, 0, 8) };
+        var row = new RoundedPanel { Dock = DockStyle.Top, Height = 70, FillColor = CardColor, BorderColor = BorderColor, CornerRadius = 18, Padding = new Padding(17, 9, 14, 8), Margin = new Padding(0, 0, 0, 8) };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.Transparent };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
@@ -377,7 +377,7 @@ internal sealed class DashboardForm : Form
 
     private RoundedPanel StatusCard(string glyph, out Label state, out Label substate)
     {
-        var card = new RoundedPanel { Dock = DockStyle.Fill, FillColor = CardColor, BorderColor = BorderColor, CornerRadius = 12, Padding = new Padding(16), Margin = new Padding(0, 0, 8, 0) };
+        var card = new RoundedPanel { Dock = DockStyle.Fill, FillColor = CardColor, BorderColor = BorderColor, CornerRadius = 20, Padding = new Padding(16), Margin = new Padding(0, 0, 8, 2) };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, BackColor = Color.Transparent };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -660,6 +660,20 @@ internal sealed class RoundedPanel : Panel
         using var fillPath = RoundedRectangle(innerBounds, Math.Max(1, CornerRadius - 2));
         using var fillBrush = new SolidBrush(FillColor);
         e.Graphics.FillPath(fillBrush, fillPath);
+
+        var borderY = Math.Max(1, ClientSize.Height - 3);
+        var horizontalInset = Math.Min(CornerRadius, Math.Max(1, ClientSize.Width / 2));
+        using var bottomPen = new Pen(BorderColor, 2F)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        e.Graphics.DrawLine(
+            bottomPen,
+            horizontalInset,
+            borderY,
+            Math.Max(horizontalInset, ClientSize.Width - horizontalInset),
+            borderY);
     }
 
     protected override void OnPaint(PaintEventArgs e)

@@ -299,7 +299,7 @@ public sealed class MainActivity : Activity
     private TextView OutlineButton(string text)
     {
         var button = Text(text, 14F, Purple, bold: true, gravity: GravityFlags.Center);
-        button.Background = Rounded(Card, Purple, 10);
+        button.Background = Rounded(Card, Purple, 16);
         button.Clickable = true;
         button.Focusable = true;
         return button;
@@ -307,7 +307,7 @@ public sealed class MainActivity : Activity
 
     private View CardView(View content, int bottomMargin = 0)
     {
-        var frame = new FrameLayout(this) { Background = Rounded(Card, Border, 12) };
+        var frame = new FrameLayout(this) { Background = Rounded(Card, Border, 18) };
         frame.AddView(content);
         frame.LayoutParameters = Margin(bottom: bottomMargin);
         return frame;
