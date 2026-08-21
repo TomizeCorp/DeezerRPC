@@ -51,6 +51,10 @@ public sealed class MainActivity : Activity
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
+        if (!DiscordSocialSdkInitializer.TryInitialize(this, out var discordError))
+        {
+            AndroidSettings.SetLastStatus(this, discordError);
+        }
         Window?.SetStatusBarColor(Background);
         Window?.SetNavigationBarColor(Background);
         SetContentView(BuildShell());

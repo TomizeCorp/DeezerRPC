@@ -5,20 +5,18 @@
     <OutputType>Exe</OutputType>
     <ApplicationId>com.tomize.deezerrpc</ApplicationId>
     <ApplicationTitle>DeezerRPC</ApplicationTitle>
-    <ApplicationVersion>13</ApplicationVersion>
-    <ApplicationDisplayVersion>1.1.12</ApplicationDisplayVersion>
+    <ApplicationVersion>14</ApplicationVersion>
+    <ApplicationDisplayVersion>1.1.13</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidUseAapt2>true</AndroidUseAapt2>
     <AndroidLinkMode>SdkOnly</AndroidLinkMode>
+    <DefaultItemExcludes>$(DefaultItemExcludes);native\build\**;native\build-ninja\**;native\prebuilt\**;native\prebuilt-full\**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DeezerRpc.Core\DeezerRpc.Core.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <AndroidNativeLibrary Remove="native\prebuilt\**\*.so" />
-    <AndroidNativeLibrary Remove="native\prebuilt-full\**\libdiscord_partner_sdk.so" />
-  </ItemGroup>
   <ItemGroup Condition="Exists('..\..\vendor\discord-social-sdk\lib\release\discord_partner_sdk.aar')">
+    <AndroidNativeLibrary Include="native\prebuilt-full\**\libdeezerrpc_discord_bridge.so" />
     <AndroidLibrary Include="..\..\vendor\discord-social-sdk\lib\release\discord_partner_sdk.aar" Bind="false" />
   </ItemGroup>
 </Project>

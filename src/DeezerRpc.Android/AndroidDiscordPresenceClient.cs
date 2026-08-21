@@ -11,6 +11,12 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
 
     public bool TrySetActivity(string applicationId, DiscordActivity activity, out string error)
     {
+        if (!DiscordSocialSdkInitializer.IsInitialized)
+        {
+            error = "Ouvre Deezer Presence pour initialiser Discord";
+            return false;
+        }
+
         if (!_libraryAvailable)
         {
             error = "SDK Discord Social 1.10+ absent de cette compilation";
