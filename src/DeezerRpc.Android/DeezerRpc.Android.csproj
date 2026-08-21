@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-android34.0</TargetFramework>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <ApplicationId>com.tomize.deezerrpc</ApplicationId>
+    <ApplicationTitle>DeezerRPC</ApplicationTitle>
+    <ApplicationVersion>7</ApplicationVersion>
+    <ApplicationDisplayVersion>1.1.5</ApplicationDisplayVersion>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidUseAapt2>true</AndroidUseAapt2>
+    <AndroidLinkMode>SdkOnly</AndroidLinkMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DeezerRpc.Core\DeezerRpc.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('native\prebuilt')">
+    <AndroidNativeLibrary Include="native\prebuilt\**\*.so" />
+  </ItemGroup>
+</Project>
