@@ -16,7 +16,7 @@ Le SDK Social Discord est téléchargé depuis le portail de l’application Dis
 Le mapping partagé est volontairement strict :
 
 - `details` : nom du morceau ;
-- `state` : artiste uniquement, avec `• En pause` quand nécessaire ; l’album n’est jamais répété à côté de l’artiste ;
+- `state` : artiste uniquement ; l’album n’est jamais répété à côté de l’artiste ;
 - `assets.large_image` : URL HTTPS de la pochette Deezer ;
 - aucun champ `small_image` ou `small_text` n’existe dans le modèle ;
 - `timestamps.start/end` : progression rendue nativement par Discord pendant la lecture ;
@@ -37,7 +37,7 @@ L’Application ID `1540336569532031116` est intégré à la compilation : aucun
 
 Sur Windows, « connecté » signifie que Deezer Presence utilise automatiquement le compte déjà authentifié dans Discord Desktop. L’application ne demande et ne conserve donc jamais le mot de passe, le secret client ou un token utilisateur Discord.
 
-L’application peut s’enregistrer dans `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` pour démarrer avec Windows. Elle interroge la session média locale une fois par seconde, puis laisse Discord faire avancer le temps sans republier l’activité en boucle. Les réglages permettent aussi de masquer l’album, la progression, le bouton ou le texte de pause sans jamais ajouter de petite image.
+L’application peut s’enregistrer dans `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` pour démarrer avec Windows. Elle interroge la session média locale une fois par seconde, puis laisse Discord faire avancer le temps sans republier l’activité en boucle. Lors d’une pause, l’activité Discord est entièrement supprimée et elle revient automatiquement à la reprise. Les réglages permettent aussi de masquer l’album, la progression ou le bouton sans jamais ajouter de petite image.
 
 La détection Web est désactivée par défaut. Une session média de navigateur ne révèle pas son URL à GSMTC ; lorsqu’elle est activée, DeezerRPC ne retient la session que si titre/artiste/album correspondent au catalogue Deezer. C’est utile pour Deezer Web, mais moins certain que l’application Deezer dédiée.
 
