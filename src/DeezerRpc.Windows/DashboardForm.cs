@@ -669,25 +669,43 @@ internal sealed class RoundedPanel : Panel
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-        var paintBounds = new Rectangle(
-            1,
-            1,
-            Math.Max(0, ClientSize.Width - 3),
-            Math.Max(0, ClientSize.Height - 3));
-        using var path = RoundedRectangle(paintBounds, CornerRadius);
+        var fillBounds = new Rectangle(
+            0,
+            0,
+            Math.Max(0, ClientSize.Width),
+            Math.Max(0, ClientSize.Height));
+        using var path = RoundedRectangle(fillBounds, CornerRadius);
         using var fillBrush = new SolidBrush(FillColor);
         e.Graphics.FillPath(fillBrush, path);
-
-        using var borderPen = new Pen(BorderColor, 2F)
-        {
-            Alignment = PenAlignment.Inset
-        };
-        e.Graphics.DrawPath(borderPen, path);
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        var borderBounds = new Rectangle(
+            2,
+            2,
+            Math.Max(0, ClientSize.Width - 5),
+            Math.Max(0, ClientSize.Height - 5));
+        using var borderPath = RoundedRectangle(borderBounds, Math.Max(1, CornerRadius - 2));
+        using var borderPen = new Pen(BorderColor, 2F)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        e.Graphics.DrawPath(borderPen, borderPath);
+
+        var bottomY = Math.Max(2, ClientSize.Height - 3);
+        var bottomInset = Math.Min(CornerRadius, Math.Max(2, ClientSize.Width / 2));
+        e.Graphics.DrawLine(
+            borderPen,
+            bottomInset,
+            bottomY,
+            Math.Max(bottomInset, ClientSize.Width - bottomInset),
+            bottomY);
     }
 
     private void UpdateRoundedRegion()
