@@ -649,19 +649,23 @@ internal sealed class RoundedPanel : Panel
     protected override void OnPaintBackground(PaintEventArgs e)
     {
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var path = RoundedRectangle(ClientPixelBounds(), CornerRadius);
-        using var brush = new SolidBrush(FillColor);
-        e.Graphics.FillPath(brush, path);
+        using var borderPath = RoundedRectangle(ClientPixelBounds(), CornerRadius);
+        using var borderBrush = new SolidBrush(BorderColor);
+        e.Graphics.FillPath(borderBrush, borderPath);
+
+        var innerBounds = new Rectangle(
+            2,
+            2,
+            Math.Max(0, ClientSize.Width - 5),
+            Math.Max(0, ClientSize.Height - 5));
+        using var fillPath = RoundedRectangle(innerBounds, Math.Max(1, CornerRadius - 2));
+        using var fillBrush = new SolidBrush(FillColor);
+        e.Graphics.FillPath(fillBrush, fillPath);
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        var bounds = Rectangle.Inflate(ClientRectangle, -1, -1);
-        using var path = RoundedRectangle(bounds, CornerRadius);
-        using var pen = new Pen(BorderColor);
-        e.Graphics.DrawPath(pen, path);
     }
 
     private Rectangle ClientPixelBounds() => new(
