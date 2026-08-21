@@ -231,16 +231,17 @@ internal sealed class DashboardForm : Form
         var content = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Padding = new Padding(30, 26, 30, 24), BackColor = WindowColor };
         content.RowStyles.Clear();
 
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 78, ColumnCount = 2, BackColor = WindowColor };
+        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 96, MinimumSize = new Size(0, 96), ColumnCount = 2, RowCount = 1, BackColor = WindowColor };
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
+        header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var titleArea = new Panel { Dock = DockStyle.Fill, BackColor = WindowColor };
         titleArea.Controls.Add(Label("Deezer Presence", 24F, Color.White, bold: true, dockTop: true, height: 38));
         var subtitle = Label("Affiche ce que tu écoutes sur Deezer sur ton profil Discord.", 10F, MutedColor, dockTop: true, height: 30);
         subtitle.Padding = new Padding(0, 5, 0, 0);
         titleArea.Controls.Add(subtitle);
         titleArea.Controls.SetChildIndex(subtitle, 0);
-        var toggleCard = new RoundedPanel { Dock = DockStyle.Fill, FillColor = CardColor, BorderColor = BorderColor, CornerRadius = 24, Padding = new Padding(14), Margin = new Padding(14, 8, 0, 10) };
+        var toggleCard = new RoundedPanel { Dock = DockStyle.Fill, MinimumSize = new Size(0, 70), FillColor = CardColor, BorderColor = BorderColor, CornerRadius = 24, Padding = new Padding(14), Margin = new Padding(14, 8, 0, 14) };
         var toggleLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.Transparent };
         toggleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         toggleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 54));
@@ -668,37 +669,20 @@ internal sealed class RoundedPanel : Panel
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-        var outerBounds = new Rectangle(
-            0,
-            0,
-            Math.Max(0, ClientSize.Width - 1),
-            Math.Max(0, ClientSize.Height - 1));
-        using var borderPath = RoundedRectangle(outerBounds, CornerRadius);
-        using var borderBrush = new SolidBrush(BorderColor);
-        e.Graphics.FillPath(borderBrush, borderPath);
-
-        var innerBounds = new Rectangle(
-            2,
-            2,
-            Math.Max(0, ClientSize.Width - 4),
-            Math.Max(0, ClientSize.Height - 4));
-        using var fillPath = RoundedRectangle(innerBounds, Math.Max(1, CornerRadius - 2));
+        var paintBounds = new Rectangle(
+            1,
+            1,
+            Math.Max(0, ClientSize.Width - 3),
+            Math.Max(0, ClientSize.Height - 3));
+        using var path = RoundedRectangle(paintBounds, CornerRadius);
         using var fillBrush = new SolidBrush(FillColor);
-        e.Graphics.FillPath(fillBrush, fillPath);
+        e.Graphics.FillPath(fillBrush, path);
 
-        var borderY = Math.Max(1, ClientSize.Height - 2);
-        var horizontalInset = Math.Min(CornerRadius, Math.Max(1, ClientSize.Width / 2));
-        using var bottomPen = new Pen(BorderColor, 1.5F)
+        using var borderPen = new Pen(BorderColor, 2F)
         {
-            StartCap = LineCap.Round,
-            EndCap = LineCap.Round
+            Alignment = PenAlignment.Inset
         };
-        e.Graphics.DrawLine(
-            bottomPen,
-            horizontalInset,
-            borderY,
-            Math.Max(horizontalInset, ClientSize.Width - horizontalInset),
-            borderY);
+        e.Graphics.DrawPath(borderPen, path);
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -713,7 +697,8 @@ internal sealed class RoundedPanel : Panel
             return;
         }
 
-        using var path = RoundedRectangle(ClientRectangle, CornerRadius);
+        var regionBounds = new Rectangle(0, 0, ClientSize.Width + 1, ClientSize.Height + 1);
+        using var path = RoundedRectangle(regionBounds, CornerRadius);
         var previousRegion = Region;
         Region = new Region(path);
         previousRegion?.Dispose();
