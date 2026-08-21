@@ -9,7 +9,6 @@ internal sealed record AndroidAppSettings
     public bool ShowAlbum { get; init; } = true;
     public bool ShowProgress { get; init; } = true;
     public bool ShowDeezerButton { get; init; } = true;
-    public bool ShowPauseState { get; init; } = true;
     public bool KeepRunningInBackground { get; init; } = true;
     public bool ShowNotifications { get; init; } = true;
 }
@@ -35,7 +34,6 @@ internal static class AndroidSettings
             ShowAlbum = preferences.GetBoolean("show_album", true),
             ShowProgress = preferences.GetBoolean("show_progress", true),
             ShowDeezerButton = preferences.GetBoolean("show_button", true),
-            ShowPauseState = preferences.GetBoolean("show_pause", true),
             KeepRunningInBackground = preferences.GetBoolean("keep_background", true),
             ShowNotifications = preferences.GetBoolean("show_notifications", true)
         };
@@ -47,7 +45,6 @@ internal static class AndroidSettings
             .PutBoolean("show_album", settings.ShowAlbum)!
             .PutBoolean("show_progress", settings.ShowProgress)!
             .PutBoolean("show_button", settings.ShowDeezerButton)!
-            .PutBoolean("show_pause", settings.ShowPauseState)!
             .PutBoolean("keep_background", settings.KeepRunningInBackground)!
             .PutBoolean("show_notifications", settings.ShowNotifications)!
             .Apply();

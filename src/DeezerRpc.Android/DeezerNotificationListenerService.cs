@@ -90,6 +90,21 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             return;
         }
 
+        if (track.Status == CorePlaybackStatus.Paused)
+        {
+            var pausedFingerprint = $"paused|{track.Identity}";
+            if (_lastFingerprint == pausedFingerprint)
+            {
+                return;
+            }
+
+            _discord.TryClear();
+            _lastFingerprint = pausedFingerprint;
+            track = await _catalog.EnrichAsync(track, requireCatalogMatch: false, cancellationToken) ?? track;
+            AndroidSettings.SavePlayback(this, track, "En pause — activité Discord retirée", false);
+            return;
+        }
+
         track = await _catalog.EnrichAsync(track, requireCatalogMatch: false, cancellationToken) ?? track;
         if (!settings.RichPresenceEnabled)
         {
@@ -106,8 +121,7 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             track.TrackUrl,
             settings.ShowAlbum,
             settings.ShowProgress,
-            settings.ShowDeezerButton,
-            settings.ShowPauseState);
+            settings.ShowDeezerButton);
         if (fingerprint == _lastFingerprint)
         {
             return;
@@ -117,16 +131,12 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
         {
             ShowAlbum = settings.ShowAlbum,
             ShowProgress = settings.ShowProgress,
-            ShowDeezerButton = settings.ShowDeezerButton,
-            ShowPauseState = settings.ShowPauseState
+            ShowDeezerButton = settings.ShowDeezerButton
         });
         if (_discord.TrySetActivity(AppIdentity.DiscordApplicationId, activity, out var error))
         {
             _lastFingerprint = fingerprint;
-            var status = track.Status == CorePlaybackStatus.Paused
-                ? $"En pause — {track.Title}"
-                : $"Publié — {track.Title}";
-            AndroidSettings.SavePlayback(this, track, status, true);
+            AndroidSettings.SavePlayback(this, track, $"Publié — {track.Title}", true);
         }
         else
         {

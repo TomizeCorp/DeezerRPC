@@ -241,7 +241,6 @@ public sealed class MainActivity : Activity
         content.AddView(SettingRow("Afficher l’album", "Ligne séparée sous le nom de l’artiste", settings.ShowAlbum, value => Save(s => s with { ShowAlbum = value })));
         content.AddView(SettingRow("Afficher la progression", "Durée et progression natives Discord", settings.ShowProgress, value => Save(s => s with { ShowProgress = value })));
         content.AddView(SettingRow("Afficher le bouton Deezer", "Lien direct vers le morceau", settings.ShowDeezerButton, value => Save(s => s with { ShowDeezerButton = value })));
-        content.AddView(SettingRow("Afficher l’état de pause", "Ajoute uniquement « En pause » au texte", settings.ShowPauseState, value => Save(s => s with { ShowPauseState = value })));
         content.AddView(Section("GÉNÉRAL"));
         content.AddView(SettingRow("Fonctionner en arrière-plan", "Maintient la détection active", settings.KeepRunningInBackground, value => Save(s => s with { KeepRunningInBackground = value })));
         content.AddView(SettingRow("Notifications", "Notification permanente de fonctionnement", settings.ShowNotifications, value => Save(s => s with { ShowNotifications = value })));

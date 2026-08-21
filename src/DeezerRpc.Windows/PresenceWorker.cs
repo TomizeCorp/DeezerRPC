@@ -88,6 +88,30 @@ internal sealed class PresenceWorker : IAsyncDisposable
             return;
         }
 
+        if (rawTrack.Status == PlaybackStatus.Paused)
+        {
+            var pausedFingerprint = $"paused|{rawTrack.Identity}";
+            if (_lastFingerprint == pausedFingerprint && !_presenceWasSet)
+            {
+                return;
+            }
+
+            await TryClearAsync(cancellationToken);
+            var pausedTrack = _lastPublishedTrack is { } previous && previous.Identity == rawTrack.Identity
+                ? previous with
+                {
+                    Status = PlaybackStatus.Paused,
+                    Position = rawTrack.Position,
+                    ObservedAt = rawTrack.ObservedAt,
+                    Duration = rawTrack.Duration > TimeSpan.Zero ? rawTrack.Duration : previous.Duration
+                }
+                : rawTrack;
+            _lastFingerprint = pausedFingerprint;
+            _lastPublishedTrack = pausedTrack;
+            Report("En pause — activité Discord retirée", pausedTrack);
+            return;
+        }
+
         var browserSource = !rawTrack.SourceId.Contains("deezer", StringComparison.OrdinalIgnoreCase);
         var track = await _catalog.EnrichAsync(rawTrack, browserSource, cancellationToken);
         if (track is null)
@@ -129,8 +153,7 @@ internal sealed class PresenceWorker : IAsyncDisposable
         {
             ShowAlbum = _settings.ShowAlbum,
             ShowProgress = _settings.ShowProgress,
-            ShowDeezerButton = _settings.ShowDeezerButton,
-            ShowPauseState = _settings.ShowPauseState
+            ShowDeezerButton = _settings.ShowDeezerButton
         };
         var activity = _activityBuilder.Build(track, now, options);
         _lastFingerprint = fingerprint;
@@ -139,9 +162,7 @@ internal sealed class PresenceWorker : IAsyncDisposable
         {
             await _discord.SetActivityAsync(activity, cancellationToken);
             _presenceWasSet = true;
-            Report(track.Status == PlaybackStatus.Paused
-                ? $"En pause — {track.Title}"
-                : $"Publié — {track.Title}", track);
+            Report($"Publié — {track.Title}", track);
         }
         catch (IOException)
         {

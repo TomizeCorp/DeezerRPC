@@ -12,16 +12,16 @@ public sealed class DiscordActivityBuilder
         {
             throw new ArgumentException("A track title and artist are required.", nameof(track));
         }
+        if (track.Status != PlaybackStatus.Playing)
+        {
+            throw new InvalidOperationException("Only a playing track can be published to Discord.");
+        }
 
         var album = track.Album.Trim();
         var state = track.Artist.Trim();
-        if (track.Status == PlaybackStatus.Paused && options.ShowPauseState)
-        {
-            state += " • En pause";
-        }
 
         DiscordTimestamps? timestamps = null;
-        if (options.ShowProgress && track.Status == PlaybackStatus.Playing && track.Duration > TimeSpan.Zero)
+        if (options.ShowProgress && track.Duration > TimeSpan.Zero)
         {
             var position = track.ProjectPosition(now);
             var start = now - position;

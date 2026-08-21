@@ -335,7 +335,6 @@ internal sealed class DashboardForm : Form
         content.Controls.Add(SettingRow("Afficher l’album", "Affiche l’album sur une ligne séparée sous l’artiste", _settings.ShowAlbum, value => Save(_settings with { ShowAlbum = value })));
         content.Controls.Add(SettingRow("Afficher la progression", "Utilise les horodatages natifs de Discord", _settings.ShowProgress, value => Save(_settings with { ShowProgress = value })));
         content.Controls.Add(SettingRow("Afficher le bouton Deezer", "Ajoute « Écouter sur Deezer » quand le lien est disponible", _settings.ShowDeezerButton, value => Save(_settings with { ShowDeezerButton = value })));
-        content.Controls.Add(SettingRow("Afficher l’état de pause", "Ajoute uniquement « En pause » dans le texte", _settings.ShowPauseState, value => Save(_settings with { ShowPauseState = value })));
         content.Controls.Add(SectionLabel("GÉNÉRAL"));
         content.Controls.Add(SettingRow("Lancer au démarrage", "Démarre Deezer Presence avec Windows", _settings.StartWithWindows, value => Save(_settings with { StartWithWindows = value })));
         content.Controls.Add(SettingRow("Fonctionner en arrière-plan", "Fermer la fenêtre laisse la Rich Presence active", _settings.KeepRunningInBackground, value => Save(_settings with { KeepRunningInBackground = value })));

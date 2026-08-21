@@ -29,16 +29,15 @@ Assert(!json.Contains("small_image", StringComparison.Ordinal), "small_image est
 Assert(!json.Contains("small_text", StringComparison.Ordinal), "small_text est strictement interdit.");
 Assert(activity.Buttons is [{ Label: "Écouter sur Deezer" }], "Le bouton Deezer doit être présent.");
 
-var paused = builder.Build(playing with { Status = PlaybackStatus.Paused }, now);
-Assert(paused.Timestamps is null, "Une pause ne doit pas continuer la progression Discord.");
-Assert(paused.State.EndsWith("En pause", StringComparison.Ordinal), "La pause doit être textuelle uniquement.");
+AssertThrows<InvalidOperationException>(
+    () => builder.Build(playing with { Status = PlaybackStatus.Paused }, now),
+    "Une piste en pause ne doit jamais produire d’activité Discord.");
 
 var minimal = builder.Build(playing, now, new PresenceOptions
 {
     ShowAlbum = false,
     ShowProgress = false,
-    ShowDeezerButton = false,
-    ShowPauseState = false
+    ShowDeezerButton = false
 });
 Assert(minimal.State == "Alan Walker", "L’album ne doit jamais être répété à côté de l’artiste.");
 Assert(minimal.Timestamps is null, "La progression doit pouvoir être masquée.");
@@ -93,4 +92,18 @@ static void Assert(bool condition, string message)
     {
         throw new InvalidOperationException(message);
     }
+}
+
+static void AssertThrows<TException>(Action action, string message) where TException : Exception
+{
+    try
+    {
+        action();
+    }
+    catch (TException)
+    {
+        return;
+    }
+
+    throw new InvalidOperationException(message);
 }

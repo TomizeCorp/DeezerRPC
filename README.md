@@ -6,8 +6,8 @@ DeezerRPC publie le morceau actuellement joué sur Deezer dans la Rich Presence 
 
 | Plateforme | Détection Deezer | Rich Presence | Livrable |
 |---|---|---|---|
-| Windows 10/11 | Application Deezer via GSMTC ; navigateurs en option | Fonctionnelle via le compte ouvert dans Discord Desktop | `artifacts/windows-win-x64-v1.1.6/DeezerRPC.exe` |
-| Android 7+ | Session média Deezer via `NotificationListenerService` | Prête pour Discord Social SDK 1.10+ | `artifacts/android-v1.1.5/DeezerPresence-Android-detector-only-v1.1.5.apk` ; SDK officiel requis pour publier |
+| Windows 10/11 | Application Deezer via GSMTC ; navigateurs en option | Fonctionnelle via le compte ouvert dans Discord Desktop | `artifacts/windows-win-x64-v1.1.7/DeezerRPC.exe` |
+| Android 7+ | Session média Deezer via `NotificationListenerService` | Prête pour Discord Social SDK 1.10+ | `artifacts/android-v1.1.7/DeezerPresence-Android-detector-only-v1.1.7.apk` ; SDK officiel requis pour publier |
 
 Le SDK Social Discord est téléchargé depuis le portail de l’application Discord et n’est pas redistribuable dans ce dépôt. L’APK de démonstration compile et détecte Deezer, mais affiche donc clairement « SDK absent » au lieu d’utiliser une méthode non officielle ou un jeton utilisateur.
 
