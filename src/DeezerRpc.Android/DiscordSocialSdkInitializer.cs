@@ -1,11 +1,10 @@
 using Android.App;
-using Android.Runtime;
 
 namespace DeezerRpc.Android;
 
 internal static class DiscordSocialSdkInitializer
 {
-    private const string JavaClassName = "com/discord/socialsdk/DiscordSocialSdkInit";
+    private const string JavaClassName = "com.discord.socialsdk.DiscordSocialSdkInit";
     private static readonly object Sync = new();
 
     public static bool IsInitialized { get; private set; }
@@ -14,15 +13,12 @@ internal static class DiscordSocialSdkInitializer
     {
         lock (Sync)
         {
-            nint javaClass = 0;
             try
             {
-                javaClass = JNIEnv.FindClass(JavaClassName);
-                var method = JNIEnv.GetStaticMethodID(
-                    javaClass,
-                    "setEngineActivity",
-                    "(Landroid/app/Activity;)V");
-                JNIEnv.CallStaticVoidMethod(javaClass, method, [new JValue(activity)]);
+                using var javaClass = Java.Lang.Class.ForName(JavaClassName, true, activity.ClassLoader);
+                using var activityClass = Java.Lang.Class.FromType(typeof(Activity));
+                using var method = javaClass.GetDeclaredMethod("setEngineActivity", [activityClass]);
+                method.Invoke(null, [activity]);
                 IsInitialized = true;
                 error = string.Empty;
                 return true;
@@ -32,13 +28,6 @@ internal static class DiscordSocialSdkInitializer
                 IsInitialized = false;
                 error = $"Initialisation Discord impossible : {exception.Message}";
                 return false;
-            }
-            finally
-            {
-                if (javaClass != 0)
-                {
-                    JNIEnv.DeleteLocalRef(javaClass);
-                }
             }
         }
     }

@@ -19,7 +19,7 @@ Dans la rubrique Discord Social SDK de l’application :
 
 La version 1.10 est nécessaire : elle permet au SDK de publier une présence vers le client Discord Android connecté. L’archive propriétaire doit être ajoutée avant de produire l’APK complet ; la release officielle inclut l’AAR Android et le pont natif compilé.
 
-Sur Android, `MainActivity` appelle `DiscordSocialSdkInit.setEngineActivity(...)` avant toute création du client natif. Le service de détection refuse d’appeler le SDK tant que cette initialisation n’est pas terminée, afin d’éviter un crash lorsque le contexte Android n’est pas encore disponible.
+Sur Android, le bouton « Connecter Discord » appelle `DiscordSocialSdkInit.setEngineActivity(...)` avec le chargeur de classes de l’application avant toute création du client natif. Le service de détection refuse d’appeler le SDK tant que cette initialisation n’est pas terminée, afin d’éviter un crash lorsque le contexte Android n’est pas encore disponible.
 
 ## Vérification visuelle
 

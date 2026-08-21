@@ -51,10 +51,6 @@ public sealed class MainActivity : Activity
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-        if (!DiscordSocialSdkInitializer.TryInitialize(this, out var discordError))
-        {
-            AndroidSettings.SetLastStatus(this, discordError);
-        }
         Window?.SetStatusBarColor(Background);
         Window?.SetNavigationBarColor(Background);
         SetContentView(BuildShell());
@@ -218,14 +214,14 @@ public sealed class MainActivity : Activity
         discordContent.AddView(discordIcon, new LinearLayout.LayoutParams(Dp(54), Dp(70)));
         var discordText = Vertical(0, 0);
         _discordState = Text("Connexion Discord", 14F, White, bold: true);
-        _discordSubstate = Text("Ouvre Discord puis lance une musique", 11F, Muted);
+        _discordSubstate = Text("Appuie sur Connecter Discord", 11F, Muted);
         discordText.AddView(_discordState);
         discordText.AddView(_discordSubstate);
         discordContent.AddView(discordText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1F));
         content.AddView(CardView(discordContent), Margin(top: 12));
 
-        var connect = OutlineButton("Ouvrir Discord");
-        connect.Click += (_, _) => OpenDiscord();
+        var connect = OutlineButton("Connecter Discord");
+        connect.Click += (_, _) => InitializeAndOpenDiscord();
         content.AddView(connect, Margin(top: 10, height: 52));
 
         _runtimeState = Text("Initialisation…", 11F, Muted);
@@ -423,8 +419,22 @@ public sealed class MainActivity : Activity
         }
 
         _discordState!.Text = snapshot.DiscordConnected ? "Discord connecté" : "Connexion Discord";
-        _discordSubstate!.Text = snapshot.DiscordConnected ? "Rich Presence active" : "Ouvre Discord puis lance une musique";
+        _discordSubstate!.Text = snapshot.DiscordConnected ? "Rich Presence active" : "Appuie sur Connecter Discord";
         _runtimeState!.Text = snapshot.StatusText;
+    }
+
+    private void InitializeAndOpenDiscord()
+    {
+        if (!DiscordSocialSdkInitializer.TryInitialize(this, out var error))
+        {
+            AndroidSettings.SetLastStatus(this, error);
+            RefreshState();
+            return;
+        }
+
+        AndroidSettings.SetLastStatus(this, "Discord initialisé — lance une musique");
+        RefreshState();
+        OpenDiscord();
     }
 
     private async Task LoadCoverAsync(System.Uri? uri)

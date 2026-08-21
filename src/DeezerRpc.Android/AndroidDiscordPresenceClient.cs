@@ -13,7 +13,7 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
     {
         if (!DiscordSocialSdkInitializer.IsInitialized)
         {
-            error = "Ouvre Deezer Presence pour initialiser Discord";
+            error = "Appuie sur Connecter Discord dans Deezer Presence";
             return false;
         }
 
