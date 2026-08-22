@@ -3,6 +3,8 @@ namespace DeezerRpc.Core;
 public sealed class DiscordActivityBuilder
 {
     private const int TextLimit = 128;
+    public const string DeezerMonochromeLogoUrl =
+        "https://raw.githubusercontent.com/TomizeCorp/DeezerRPC/main/assets/discord-deezer-monochrome.png";
 
     public DiscordActivity Build(NowPlayingTrack track, DateTimeOffset now, PresenceOptions? options = null)
     {
@@ -33,19 +35,24 @@ public sealed class DiscordActivityBuilder
             };
         }
 
-        DiscordAssets? assets = null;
+        string? largeImage = null;
+        string? largeText = null;
         if (IsPublicHttps(track.CoverUrl))
         {
-            assets = new DiscordAssets
-            {
-                LargeImage = track.CoverUrl!.AbsoluteUri,
-                LargeText = Trim(
-                    options.ShowAlbum && !string.IsNullOrWhiteSpace(album)
-                        ? album
-                        : $"{track.Title.Trim()} — {track.Artist.Trim()}",
-                    TextLimit)
-            };
+            largeImage = track.CoverUrl!.AbsoluteUri;
+            largeText = Trim(
+                options.ShowAlbum && !string.IsNullOrWhiteSpace(album)
+                    ? album
+                    : $"{track.Title.Trim()} — {track.Artist.Trim()}",
+                TextLimit);
         }
+        var assets = new DiscordAssets
+        {
+            LargeImage = largeImage,
+            LargeText = largeText,
+            SmallImage = DeezerMonochromeLogoUrl,
+            SmallText = "Deezer"
+        };
 
         IReadOnlyList<DiscordButton>? buttons = null;
         if (options.ShowDeezerButton && IsPublicHttps(track.TrackUrl))

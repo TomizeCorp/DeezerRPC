@@ -47,6 +47,8 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
                 timestamps?.End ?? 0,
                 assets?.LargeImage ?? string.Empty,
                 assets?.LargeText ?? string.Empty,
+                assets?.SmallImage ?? string.Empty,
+                assets?.SmallText ?? string.Empty,
                 button?.Label ?? string.Empty,
                 button?.Url ?? string.Empty);
             if (result != 0)
@@ -242,6 +244,8 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
             long endTimestamp,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string largeImage,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string largeText,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string smallImage,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string smallText,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string buttonLabel,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string buttonUrl);
 

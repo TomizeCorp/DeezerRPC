@@ -27,8 +27,8 @@ Utilisez un second compte Discord pour vérifier le bouton, car Discord ne montr
 
 Contrôlez les invariants suivants :
 
-- une seule image, la pochette carrée ;
-- aucune icône accolée, même en pause ;
+- la pochette carrée comme grande image ;
+- le logo Deezer monochrome comme petite image superposée par Discord ;
 - titre sur la première ligne personnalisée ;
 - artiste seul sur la seconde ligne Discord ; album séparé dans l’interface de Deezer Presence ;
 - progression Discord pendant la lecture, aucun chronomètre actif en pause ;

@@ -1,6 +1,6 @@
 # DeezerRPC
 
-DeezerRPC publie le morceau actuellement joué sur Deezer dans la Rich Presence Discord, avec la même règle visuelle sur Android et Windows : **pochette seule, titre, artiste, album, progression native et bouton Deezer**.
+DeezerRPC publie le morceau actuellement joué sur Deezer dans la Rich Presence Discord, avec la même règle visuelle sur Android et Windows : **pochette, petit logo Deezer monochrome, titre, artiste, album, progression native et bouton Deezer**.
 
 ## État du projet
 
@@ -20,7 +20,7 @@ Le mapping partagé est volontairement strict :
 - `details` : nom du morceau ;
 - `state` : artiste uniquement ; l’album n’est jamais répété à côté de l’artiste ;
 - `assets.large_image` : URL HTTPS de la pochette Deezer ;
-- aucun champ `small_image` ou `small_text` n’existe dans le modèle ;
+- `assets.small_image` : logo Deezer monochrome blanc sur fond transparent, superposé par Discord à la pochette ;
 - `timestamps.start/end` : progression rendue nativement par Discord pendant la lecture ;
 - barre pleine largeur `Écouter sur Deezer` sous le morceau : lien direct lorsqu’il est résolu, recherche titre/artiste sur Deezer en secours dans l’interface ;
 - l’application affiche le titre, puis l’artiste, puis l’album sur des lignes distinctes ; la ligne album disparaît lorsqu’elle n’est pas disponible.
@@ -41,7 +41,7 @@ L’Application ID `1540336569532031116` est intégré à la compilation : aucun
 
 Sur Windows, « connecté » signifie que Deezer Presence utilise automatiquement le compte déjà authentifié dans Discord Desktop. L’application ne demande et ne conserve donc jamais le mot de passe, le secret client ou un token utilisateur Discord.
 
-L’application peut s’enregistrer dans `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` pour démarrer avec Windows. Elle interroge la session média locale une fois par seconde, puis laisse Discord faire avancer le temps sans republier l’activité en boucle. Lors d’une pause, l’activité Discord est entièrement supprimée et elle revient automatiquement à la reprise. Les réglages permettent aussi de masquer l’album, la progression ou le bouton sans jamais ajouter de petite image.
+L’application peut s’enregistrer dans `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` pour démarrer avec Windows. Elle interroge la session média locale une fois par seconde, puis laisse Discord faire avancer le temps sans republier l’activité en boucle. Lors d’une pause, l’activité Discord est entièrement supprimée — logo compris — et elle revient automatiquement à la reprise. Les réglages permettent aussi de masquer l’album, la progression ou le bouton.
 
 La détection Web est désactivée par défaut. Une session média de navigateur ne révèle pas son URL à GSMTC ; lorsqu’elle est activée, DeezerRPC ne retient la session que si titre/artiste/album correspondent au catalogue Deezer. C’est utile pour Deezer Web, mais moins certain que l’application Deezer dédiée.
 
@@ -92,6 +92,6 @@ Pour compiler l’APK de détection sans le binaire Discord propriétaire :
 - `src/DeezerRpc.Core` : modèle de morceau, résolution catalogue Deezer et construction Rich Presence partagés ;
 - `src/DeezerRpc.Windows` : GSMTC, client RPC local Discord, zone de notification et démarrage Windows ;
 - `src/DeezerRpc.Android` : `MediaSessionManager`, service en arrière-plan et pont Discord Social SDK ;
-- `tests/DeezerRpc.Core.Tests` : contrats du design, dont l’absence obligatoire de petite image.
+- `tests/DeezerRpc.Core.Tests` : contrats du design, dont la pochette, le logo Deezer monochrome et le bouton direct.
 
 Références techniques : [Rich Presence Discord](https://docs.discord.com/developers/discord-social-sdk/development-guides/setting-rich-presence), [compatibilité Discord Social SDK](https://docs.discord.com/developers/discord-social-sdk/core-concepts/platform-compatibility), [GSMTC Windows](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager), [MediaSessionManager Android](https://developer.android.com/reference/android/media/session/MediaSessionManager).

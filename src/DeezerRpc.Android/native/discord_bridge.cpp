@@ -79,6 +79,8 @@ extern "C" __attribute__((visibility("default"))) int drpc_set_activity(
     std::int64_t end_timestamp,
     const char* large_image,
     const char* large_text,
+    const char* small_image,
+    const char* small_text,
     const char* button_label,
     const char* button_url) {
     std::lock_guard lock(client_mutex);
@@ -99,11 +101,17 @@ extern "C" __attribute__((visibility("default"))) int drpc_set_activity(
         activity.SetTimestamps(timestamps);
     }
 
-    if (large_image != nullptr && *large_image != '\0') {
+    if ((large_image != nullptr && *large_image != '\0') ||
+        (small_image != nullptr && *small_image != '\0')) {
         discordpp::ActivityAssets assets;
-        assets.SetLargeImage(safe(large_image));
-        assets.SetLargeText(safe(large_text));
-        // Deliberately no SetSmallImage or SetSmallText call.
+        if (large_image != nullptr && *large_image != '\0') {
+            assets.SetLargeImage(safe(large_image));
+            assets.SetLargeText(safe(large_text));
+        }
+        if (small_image != nullptr && *small_image != '\0') {
+            assets.SetSmallImage(safe(small_image));
+            assets.SetSmallText(safe(small_text));
+        }
         activity.SetAssets(assets);
     }
 

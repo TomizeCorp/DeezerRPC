@@ -38,12 +38,20 @@ public sealed class DiscordTimestamps
 public sealed class DiscordAssets
 {
     [JsonPropertyName("large_image")]
-    public required string LargeImage { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LargeImage { get; init; }
 
     [JsonPropertyName("large_text")]
-    public required string LargeText { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LargeText { get; init; }
 
-    // Intentionally no small_image/small_text: the album cover must remain alone.
+    [JsonPropertyName("small_image")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SmallImage { get; init; }
+
+    [JsonPropertyName("small_text")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SmallText { get; init; }
 }
 
 public sealed class DiscordButton
@@ -54,4 +62,3 @@ public sealed class DiscordButton
     [JsonPropertyName("url")]
     public required string Url { get; init; }
 }
-

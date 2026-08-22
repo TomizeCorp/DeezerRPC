@@ -25,8 +25,9 @@ Assert(activity.State == "Alan Walker", "La ligne state doit contenir uniquement
 Assert(activity.Timestamps?.Start == now.AddSeconds(-102).ToUnixTimeSeconds(), "Le début Discord doit refléter la position.");
 Assert(activity.Timestamps?.End == now.AddSeconds(110).ToUnixTimeSeconds(), "La fin Discord doit refléter la durée.");
 Assert(activity.Assets?.LargeImage == playing.CoverUrl.AbsoluteUri, "La pochette doit être large_image.");
-Assert(!json.Contains("small_image", StringComparison.Ordinal), "small_image est strictement interdit.");
-Assert(!json.Contains("small_text", StringComparison.Ordinal), "small_text est strictement interdit.");
+Assert(activity.Assets?.SmallImage == DiscordActivityBuilder.DeezerMonochromeLogoUrl, "Le logo Deezer monochrome doit être small_image.");
+Assert(activity.Assets?.SmallText == "Deezer", "Le logo monochrome doit identifier Deezer.");
+Assert(json.Contains("small_image", StringComparison.Ordinal), "small_image doit être transmis à Discord.");
 Assert(activity.Buttons is [{ Label: "Écouter sur Deezer" }], "Le bouton Deezer doit être présent.");
 
 AssertThrows<InvalidOperationException>(
@@ -42,7 +43,8 @@ var minimal = builder.Build(playing, now, new PresenceOptions
 Assert(minimal.State == "Alan Walker", "L’album ne doit jamais être répété à côté de l’artiste.");
 Assert(minimal.Timestamps is null, "La progression doit pouvoir être masquée.");
 Assert(minimal.Buttons is null, "Le bouton Deezer doit pouvoir être masqué.");
-Assert(minimal.Assets?.LargeImage == playing.CoverUrl.AbsoluteUri, "La pochette reste la seule image dans tous les modes.");
+Assert(minimal.Assets?.LargeImage == playing.CoverUrl.AbsoluteUri, "La pochette doit rester la grande image dans tous les modes.");
+Assert(minimal.Assets?.SmallImage == DiscordActivityBuilder.DeezerMonochromeLogoUrl, "Le logo Deezer doit rester présent dans tous les modes.");
 
 var withoutAlbum = builder.Build(playing with { Album = string.Empty }, now);
 Assert(withoutAlbum.State == "Alan Walker", "Un album indisponible ne doit pas afficher de texte de remplacement.");
@@ -58,7 +60,8 @@ var withoutRemoteAssets = builder.Build(
         TrackUrl = new Uri("http://localhost:8080/track")
     },
     now);
-Assert(withoutRemoteAssets.Assets is null, "Une image locale ne doit pas être envoyée à Discord.");
+Assert(withoutRemoteAssets.Assets?.LargeImage is null, "Une pochette locale ne doit pas être envoyée à Discord.");
+Assert(withoutRemoteAssets.Assets?.SmallImage == DiscordActivityBuilder.DeezerMonochromeLogoUrl, "Le logo Deezer public doit rester disponible sans pochette.");
 Assert(withoutRemoteAssets.Buttons is null, "Un lien local ne doit pas devenir un bouton public.");
 
 Assert(playing.ProjectPosition(now.AddSeconds(10)) == TimeSpan.FromSeconds(112), "La position doit progresser pendant la lecture.");
