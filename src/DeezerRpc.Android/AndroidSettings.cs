@@ -192,7 +192,7 @@ internal static class AndroidSettings
         NowPlayingTrack? track = null;
         if (!string.IsNullOrWhiteSpace(title))
         {
-            var cover = ParseHttps(preferences.GetString("track_cover", null));
+            var cover = ParseCoverUri(context, preferences.GetString("track_cover", null));
             var url = ParseHttps(preferences.GetString("track_url", null));
             track = new NowPlayingTrack
             {
@@ -246,4 +246,36 @@ internal static class AndroidSettings
 
     private static Uri? ParseHttps(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps ? uri : null;
+
+    private static Uri? ParseCoverUri(Context context, string? value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+        if (uri.Scheme == Uri.UriSchemeHttps)
+        {
+            return uri;
+        }
+        if (uri.Scheme != Uri.UriSchemeFile || string.IsNullOrWhiteSpace(uri.LocalPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var filesPath = context.FilesDir?.AbsolutePath;
+            if (string.IsNullOrWhiteSpace(filesPath))
+            {
+                return null;
+            }
+            var root = Path.GetFullPath(filesPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var candidate = Path.GetFullPath(uri.LocalPath);
+            return candidate.StartsWith(root, StringComparison.Ordinal) ? uri : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

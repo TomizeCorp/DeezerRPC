@@ -705,11 +705,27 @@ public sealed class MainActivity : Activity
         _coverUrl = requested;
         try
         {
-            var bytes = await _images.GetByteArrayAsync(uri);
-            var bitmap = BitmapFactory.DecodeByteArray(bytes, 0, bytes.Length);
+            Bitmap? bitmap;
+            if (uri.Scheme == System.Uri.UriSchemeHttps)
+            {
+                var bytes = await _images.GetByteArrayAsync(uri);
+                bitmap = BitmapFactory.DecodeByteArray(bytes, 0, bytes.Length);
+            }
+            else if (uri.Scheme == System.Uri.UriSchemeFile && !string.IsNullOrWhiteSpace(uri.LocalPath))
+            {
+                bitmap = await Task.Run(() => BitmapFactory.DecodeFile(uri.LocalPath));
+            }
+            else
+            {
+                bitmap = null;
+            }
             if (bitmap is not null && _coverUrl == requested)
             {
                 RunOnUiThread(() => _cover?.SetImageBitmap(bitmap));
+            }
+            else if (bitmap is null)
+            {
+                throw new InvalidOperationException("Pochette Deezer illisible");
             }
         }
         catch

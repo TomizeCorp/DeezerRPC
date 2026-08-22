@@ -1,11 +1,13 @@
 using Android.App;
 using Android.Content;
 using Android.Content.PM;
+using Android.Graphics;
 using Android.Media;
 using Android.Media.Session;
 using Android.OS;
 using Android.Service.Notification;
 using DeezerRpc.Core;
+using System.Security.Cryptography;
 using CorePlaybackStatus = DeezerRpc.Core.PlaybackStatus;
 
 namespace DeezerRpc.Android;
@@ -264,18 +266,145 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             _ => CorePlaybackStatus.Stopped
         };
 
+        var album = metadata.GetString(MediaMetadata.MetadataKeyAlbum)?.Trim() ?? string.Empty;
         return new NowPlayingTrack
         {
             Title = title,
             Artist = artist,
-            Album = metadata.GetString(MediaMetadata.MetadataKeyAlbum)?.Trim() ?? string.Empty,
+            Album = album,
             Duration = durationMilliseconds > 0 ? TimeSpan.FromMilliseconds(durationMilliseconds) : TimeSpan.Zero,
             Position = playback.Position > 0 ? TimeSpan.FromMilliseconds(playback.Position) : TimeSpan.Zero,
             ObservedAt = observedAt,
             Status = status,
+            CoverUrl = ReadSessionCover(metadata, $"{title}\n{artist}\n{album}"),
             SourceId = controller?.PackageName ?? "deezer.android.app"
         };
     }
+
+    private System.Uri? ReadSessionCover(MediaMetadata metadata, string identity)
+    {
+        var uriValues = new[]
+        {
+            metadata.GetString(MediaMetadata.MetadataKeyAlbumArtUri),
+            metadata.GetString(MediaMetadata.MetadataKeyArtUri),
+            metadata.GetString(MediaMetadata.MetadataKeyDisplayIconUri),
+            metadata.Description?.IconUri?.ToString()
+        }
+        .Where(value => !string.IsNullOrWhiteSpace(value))
+        .Select(value => value!.Trim())
+        .Distinct(StringComparer.Ordinal)
+        .ToArray();
+
+        foreach (var value in uriValues)
+        {
+            if (System.Uri.TryCreate(value, UriKind.Absolute, out var remote) &&
+                remote.Scheme == System.Uri.UriSchemeHttps)
+            {
+                return remote;
+            }
+        }
+
+        var localPath = ArtworkPath(identity);
+        if (localPath is not null && File.Exists(localPath) && new FileInfo(localPath).Length > 0)
+        {
+            return LocalArtworkUri(localPath);
+        }
+
+        foreach (var value in uriValues)
+        {
+            try
+            {
+                var androidUri = global::Android.Net.Uri.Parse(value);
+                if (androidUri is null)
+                {
+                    continue;
+                }
+                using var stream = ContentResolver?.OpenInputStream(androidUri);
+                using var bitmap = stream is null ? null : BitmapFactory.DecodeStream(stream);
+                var persisted = PersistArtwork(bitmap, identity);
+                if (persisted is not null)
+                {
+                    return persisted;
+                }
+            }
+            catch
+            {
+                // Some providers deliberately expose their artwork only inside the Deezer process.
+            }
+        }
+
+        foreach (var bitmap in new[]
+        {
+            metadata.GetBitmap(MediaMetadata.MetadataKeyAlbumArt),
+            metadata.GetBitmap(MediaMetadata.MetadataKeyArt),
+            metadata.GetBitmap(MediaMetadata.MetadataKeyDisplayIcon),
+            metadata.Description?.IconBitmap
+        })
+        {
+            var persisted = PersistArtwork(bitmap, identity);
+            if (persisted is not null)
+            {
+                return persisted;
+            }
+        }
+
+        return null;
+    }
+
+    private System.Uri? PersistArtwork(Bitmap? bitmap, string identity)
+    {
+        if (bitmap is null)
+        {
+            return null;
+        }
+
+        var path = ArtworkPath(identity);
+        if (path is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var directory = System.IO.Path.GetDirectoryName(path)!;
+            Directory.CreateDirectory(directory);
+            using (var output = File.Create(path))
+            {
+                if (!bitmap.Compress(Bitmap.CompressFormat.Jpeg!, 92, output))
+                {
+                    return null;
+                }
+            }
+
+            foreach (var previous in Directory.EnumerateFiles(directory, "*.jpg"))
+            {
+                if (!string.Equals(previous, path, StringComparison.Ordinal))
+                {
+                    File.Delete(previous);
+                }
+            }
+            return LocalArtworkUri(path);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string? ArtworkPath(string identity)
+    {
+        var filesPath = FilesDir?.AbsolutePath;
+        if (string.IsNullOrWhiteSpace(filesPath))
+        {
+            return null;
+        }
+
+        var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)))[..20];
+        return System.IO.Path.Combine(filesPath, "artwork", $"{hash}.jpg");
+    }
+
+    private static System.Uri LocalArtworkUri(string path) =>
+        new System.UriBuilder(System.Uri.UriSchemeFile, string.Empty) { Path = path }.Uri;
 
     private void StartPersistentNotification()
     {

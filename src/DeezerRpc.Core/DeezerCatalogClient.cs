@@ -38,7 +38,9 @@ public sealed class DeezerCatalogClient : IDisposable
             Duration = track.Duration > TimeSpan.Zero
                 ? track.Duration
                 : TimeSpan.FromSeconds(resolved.DurationSeconds),
-            CoverUrl = resolved.CoverUrl,
+            // The media session artwork is the exact cover currently shown by Deezer.
+            // Keep it ahead of a catalog match, which can point at another remix/release.
+            CoverUrl = track.CoverUrl ?? resolved.CoverUrl,
             TrackUrl = resolved.TrackUrl
         };
     }
