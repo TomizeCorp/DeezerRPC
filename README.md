@@ -70,7 +70,7 @@ Discord Social SDK **1.10 ou plus récent** prend en charge Android 7+. Contrair
 
 Le manifeste déclare la redirection mobile officielle et `com.discord`, requis par Android 11+. Les jetons OAuth sont conservés uniquement dans le stockage privé non sauvegardable de l’application, renouvelés avant expiration et supprimés lors de `Se déconnecter`. Aucun serveur n’est nécessaire.
 
-Sur Android, la pochette fournie par la session média Deezer est prioritaire sur la recherche catalogue. Les URL HTTPS sont transmises directement à Discord ; les images uniquement locales sont copiées dans le stockage privé de Deezer Presence pour être affichées dans l’application, sans envoyer ces fichiers personnels à un hébergeur tiers.
+Sur Android et Windows, la pochette fournie par la session média Deezer est prioritaire dans l’interface. Les URL HTTPS sont transmises directement à Discord ; les images uniquement locales sont copiées dans le stockage privé de Deezer Presence pour être affichées dans l’application, sans envoyer ces fichiers personnels à un hébergeur tiers. Une pochette publique du catalogue peut rester utilisée séparément pour Discord.
 
 Le mode arrière-plan Android utilise une notification permanente : elle est nécessaire pour améliorer la continuité de la détection lorsque l’écran est éteint. La connexion Discord est maintenue même sans musique, vérifiée toutes les dix secondes, et l’activité est republiée toutes les vingt secondes, indépendamment de la connexion à un salon vocal. Android peut malgré tout arrêter une application selon les règles d’économie d’énergie du constructeur ; après un redémarrage ou un arrêt forcé, il faut rouvrir Deezer Presence une fois.
 

@@ -84,6 +84,7 @@ internal static class AndroidSettings
         edit?.PutLong("track_observed", track.ObservedAt.ToUnixTimeMilliseconds());
         edit?.PutInt("track_status", (int)track.Status);
         edit?.PutString("track_cover", track.CoverUrl?.AbsoluteUri ?? string.Empty);
+        edit?.PutString("track_local_cover", track.LocalCoverUri?.AbsoluteUri ?? string.Empty);
         edit?.PutString("track_url", track.TrackUrl?.AbsoluteUri ?? string.Empty);
         edit?.PutBoolean("discord_connected", discordConnected);
         if (discordConnected)
@@ -180,6 +181,7 @@ internal static class AndroidSettings
         edit?.Remove("track_observed");
         edit?.Remove("track_status");
         edit?.Remove("track_cover");
+        edit?.Remove("track_local_cover");
         edit?.Remove("track_url");
         edit?.PutBoolean("discord_connected", false);
         edit?.Apply();
@@ -192,7 +194,8 @@ internal static class AndroidSettings
         NowPlayingTrack? track = null;
         if (!string.IsNullOrWhiteSpace(title))
         {
-            var cover = ParseCoverUri(context, preferences.GetString("track_cover", null));
+            var cover = ParseHttps(preferences.GetString("track_cover", null));
+            var localCover = ParseLocalCoverUri(context, preferences.GetString("track_local_cover", null));
             var url = ParseHttps(preferences.GetString("track_url", null));
             track = new NowPlayingTrack
             {
@@ -204,6 +207,7 @@ internal static class AndroidSettings
                 ObservedAt = DateTimeOffset.FromUnixTimeMilliseconds(preferences.GetLong("track_observed", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())),
                 Status = (PlaybackStatus)preferences.GetInt("track_status", (int)PlaybackStatus.Stopped),
                 CoverUrl = cover,
+                LocalCoverUri = localCover,
                 TrackUrl = url,
                 SourceId = "deezer.android.app"
             };
@@ -247,15 +251,11 @@ internal static class AndroidSettings
     private static Uri? ParseHttps(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps ? uri : null;
 
-    private static Uri? ParseCoverUri(Context context, string? value)
+    private static Uri? ParseLocalCoverUri(Context context, string? value)
     {
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
         {
             return null;
-        }
-        if (uri.Scheme == Uri.UriSchemeHttps)
-        {
-            return uri;
         }
         if (uri.Scheme != Uri.UriSchemeFile || string.IsNullOrWhiteSpace(uri.LocalPath))
         {

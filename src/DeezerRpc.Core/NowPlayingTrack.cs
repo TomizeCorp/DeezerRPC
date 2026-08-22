@@ -10,6 +10,7 @@ public sealed record NowPlayingTrack
     public PlaybackStatus Status { get; init; }
     public DateTimeOffset ObservedAt { get; init; } = DateTimeOffset.UtcNow;
     public Uri? CoverUrl { get; init; }
+    public Uri? LocalCoverUri { get; init; }
     public Uri? TrackUrl { get; init; }
     public string SourceId { get; init; } = string.Empty;
 
@@ -33,4 +34,3 @@ public sealed record NowPlayingTrack
 
     public string Identity => $"{Title.Trim()}\n{Artist.Trim()}\n{Album.Trim()}";
 }
-

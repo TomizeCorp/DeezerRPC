@@ -30,6 +30,12 @@ Assert(!json.Contains("small_image", StringComparison.Ordinal), "small_image ne 
 Assert(activity.Buttons is [{ Label: "Écouter sur Deezer" }], "Le bouton Deezer doit être présent.");
 Assert(activity.DetailsUrl == playing.TrackUrl.AbsoluteUri, "Le titre Discord doit ouvrir directement le morceau.");
 Assert(activity.Assets?.LargeUrl == playing.TrackUrl.AbsoluteUri, "La pochette Discord doit ouvrir directement le morceau.");
+var withSeparateLocalCover = builder.Build(
+    playing with { LocalCoverUri = new Uri("file:///C:/exact-session-cover.jpg") },
+    now);
+Assert(
+    withSeparateLocalCover.Assets?.LargeImage == playing.CoverUrl.AbsoluteUri,
+    "La pochette locale de l’interface ne doit pas remplacer l’URL publique utilisée par Discord.");
 
 AssertThrows<InvalidOperationException>(
     () => builder.Build(playing with { Status = PlaybackStatus.Paused }, now),
@@ -58,7 +64,8 @@ Assert(searchLink.Host == "www.deezer.com" && searchLink.AbsolutePath.StartsWith
 var withoutRemoteAssets = builder.Build(
     playing with
     {
-        CoverUrl = new Uri("file:///C:/cover.jpg"),
+        CoverUrl = null,
+        LocalCoverUri = new Uri("file:///C:/cover.jpg"),
         TrackUrl = new Uri("http://localhost:8080/track")
     },
     now);

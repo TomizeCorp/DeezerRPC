@@ -498,7 +498,7 @@ public sealed class MainActivity : Activity
             _progress!.Progress = track.Duration > TimeSpan.Zero
                 ? (int)(Math.Clamp(position.TotalSeconds / track.Duration.TotalSeconds, 0, 1) * 1000)
                 : 0;
-            _ = LoadCoverAsync(track.CoverUrl);
+            _ = LoadCoverAsync(track.LocalCoverUri ?? track.CoverUrl);
         }
 
         _runtimeState!.Text = snapshot.StatusText;

@@ -137,6 +137,7 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             track.Status,
             track.Duration.TotalSeconds,
             track.CoverUrl,
+            track.LocalCoverUri,
             track.TrackUrl,
             settings.ShowAlbum,
             settings.ShowProgress,
@@ -267,6 +268,7 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
         };
 
         var album = metadata.GetString(MediaMetadata.MetadataKeyAlbum)?.Trim() ?? string.Empty;
+        var cover = ReadSessionCover(metadata, $"{title}\n{artist}\n{album}");
         return new NowPlayingTrack
         {
             Title = title,
@@ -276,12 +278,15 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             Position = playback.Position > 0 ? TimeSpan.FromMilliseconds(playback.Position) : TimeSpan.Zero,
             ObservedAt = observedAt,
             Status = status,
-            CoverUrl = ReadSessionCover(metadata, $"{title}\n{artist}\n{album}"),
+            CoverUrl = cover.PublicUri,
+            LocalCoverUri = cover.LocalUri,
             SourceId = controller?.PackageName ?? "deezer.android.app"
         };
     }
 
-    private System.Uri? ReadSessionCover(MediaMetadata metadata, string identity)
+    private (System.Uri? PublicUri, System.Uri? LocalUri) ReadSessionCover(
+        MediaMetadata metadata,
+        string identity)
     {
         var uriValues = new[]
         {
@@ -300,14 +305,14 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             if (System.Uri.TryCreate(value, UriKind.Absolute, out var remote) &&
                 remote.Scheme == System.Uri.UriSchemeHttps)
             {
-                return remote;
+                return (remote, null);
             }
         }
 
         var localPath = ArtworkPath(identity);
         if (localPath is not null && File.Exists(localPath) && new FileInfo(localPath).Length > 0)
         {
-            return LocalArtworkUri(localPath);
+            return (null, LocalArtworkUri(localPath));
         }
 
         foreach (var value in uriValues)
@@ -324,7 +329,7 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
                 var persisted = PersistArtwork(bitmap, identity);
                 if (persisted is not null)
                 {
-                    return persisted;
+                    return (null, persisted);
                 }
             }
             catch
@@ -344,11 +349,11 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             var persisted = PersistArtwork(bitmap, identity);
             if (persisted is not null)
             {
-                return persisted;
+                return (null, persisted);
             }
         }
 
-        return null;
+        return (null, null);
     }
 
     private System.Uri? PersistArtwork(Bitmap? bitmap, string identity)

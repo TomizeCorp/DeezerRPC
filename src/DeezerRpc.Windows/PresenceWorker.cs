@@ -158,6 +158,7 @@ internal sealed class PresenceWorker : IAsyncDisposable
             track.Status,
             track.Duration.TotalSeconds,
             track.CoverUrl,
+            track.LocalCoverUri,
             track.TrackUrl);
         var shouldReconnect = !_discord.IsConnected && now - _lastDiscordAttempt >= ReconnectInterval;
         var refreshDue = now - _lastPublishedAt >= PresenceRefreshInterval;

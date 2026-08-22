@@ -521,7 +521,7 @@ internal sealed class DashboardForm : Form
             _duration.Text = FormatTime(track.Duration);
             _progress.Value = track.Duration > TimeSpan.Zero ? Math.Clamp(position.TotalSeconds / track.Duration.TotalSeconds, 0, 1) : 0;
             _deezerButton.Enabled = true;
-            _ = LoadCoverAsync(track.CoverUrl);
+            _ = LoadCoverAsync(track.LocalCoverUri ?? track.CoverUrl);
         }
 
         _discordState.Text = snapshot.DiscordConnected ? "Discord connecté" : "Connexion Discord";
@@ -664,7 +664,9 @@ internal sealed class DashboardForm : Form
 
     private async Task LoadCoverAsync(Uri? uri)
     {
-        if (uri is null || uri.Scheme != Uri.UriSchemeHttps)
+        if (uri is null ||
+            (uri.Scheme != Uri.UriSchemeHttps &&
+             (uri.Scheme != Uri.UriSchemeFile || string.IsNullOrWhiteSpace(uri.LocalPath))))
         {
             SetFallbackCover();
             return;
@@ -679,7 +681,9 @@ internal sealed class DashboardForm : Form
         _loadedCoverUrl = url;
         try
         {
-            var bytes = await _images.GetByteArrayAsync(uri);
+            var bytes = uri.Scheme == Uri.UriSchemeHttps
+                ? await _images.GetByteArrayAsync(uri)
+                : await File.ReadAllBytesAsync(uri.LocalPath);
             await using var stream = new MemoryStream(bytes);
             using var source = Image.FromStream(stream);
             var copy = new Bitmap(source);
