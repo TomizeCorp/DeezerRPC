@@ -22,6 +22,7 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
     private static readonly TimeSpan PresenceRefreshInterval = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan FailedPublishRetryInterval = TimeSpan.FromSeconds(4);
     private static readonly TimeSpan ProfileRefreshInterval = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan DiscordConnectionCheckInterval = TimeSpan.FromSeconds(10);
     private readonly CancellationTokenSource _stop = new();
     private readonly DiscordActivityBuilder _activityBuilder = new();
     private readonly DeezerCatalogClient _catalog = new();
@@ -31,6 +32,7 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
     private DateTimeOffset _lastPublishAttempt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastPublishedAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastProfileRefresh = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastDiscordConnectionCheck = DateTimeOffset.MinValue;
     private bool _lastPublishFailed;
     private bool _foregroundActive;
 
@@ -84,6 +86,7 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
     {
         var settings = AndroidSettings.GetAppSettings(this);
         UpdateBackgroundMode(settings.KeepRunningInBackground);
+        await MaintainDiscordConnectionAsync(cancellationToken);
         var track = ReadDeezerSession();
         if (track is null || track.Status == CorePlaybackStatus.Stopped)
         {
@@ -166,7 +169,40 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
         else
         {
             _lastPublishFailed = true;
+            _lastDiscordConnectionCheck = DateTimeOffset.MinValue;
             AndroidSettings.SavePlayback(this, track, error, false);
+        }
+    }
+
+    private async Task MaintainDiscordConnectionAsync(CancellationToken cancellationToken)
+    {
+        if (!AndroidSettings.IsDiscordConnectionEnabled(this))
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (AndroidDiscordPresenceClient.IsAuthenticatedConnectionReady() &&
+            now - _lastDiscordConnectionCheck < DiscordConnectionCheckInterval)
+        {
+            return;
+        }
+        if (now - _lastDiscordConnectionCheck < DiscordConnectionCheckInterval)
+        {
+            return;
+        }
+
+        _lastDiscordConnectionCheck = now;
+        var result = await DiscordMobileConnection.EnsureConnectedAsync(this, cancellationToken);
+        if (result.Connected)
+        {
+            _lastPublishFailed = false;
+            return;
+        }
+
+        if (AndroidSettings.GetPlayback(this).Track is null)
+        {
+            AndroidSettings.SetLastStatus(this, result.Error);
         }
     }
 

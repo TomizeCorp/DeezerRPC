@@ -11,7 +11,7 @@ DeezerRPC publie le morceau actuellement joué sur Deezer dans la Rich Presence 
 
 Les fichiers prêts à installer sont disponibles dans la [dernière version GitHub](https://github.com/TomizeCorp/DeezerRPC/releases/latest). Les dossiers `artifacts/` restent volontairement exclus de l’historique Git pour éviter d’alourdir le dépôt.
 
-Le SDK Social Discord est téléchargé depuis le portail de l’application Discord et son archive n’est pas redistribuée dans ce dépôt. L’APK officiel publié inclut toutefois les bibliothèques d’exécution Android autorisées afin que la Rich Presence fonctionne sans méthode non officielle ni jeton utilisateur.
+Le SDK Social Discord est téléchargé depuis le portail de l’application Discord et son archive n’est pas redistribuée dans ce dépôt. L’APK officiel publié inclut toutefois les bibliothèques d’exécution Android autorisées. La connexion mobile utilise OAuth2 avec PKCE : aucun mot de passe, secret client ou token Discord copié manuellement n’est demandé.
 
 ## Rich Presence
 
@@ -50,12 +50,13 @@ La détection Web est désactivée par défaut. Une session média de navigateur
 
 ## Activation Discord sur Android
 
-Discord Social SDK **1.10 ou plus récent** prend en charge Android 7+ et la publication sans OAuth vers l’utilisateur connecté dans Discord Android. Pour produire l’APK complet :
+Discord Social SDK **1.10 ou plus récent** prend en charge Android 7+. Contrairement au RPC local de Windows, la Rich Presence mobile exige une liaison OAuth officielle : Discord indique que la publication sans authentification ne fonctionne qu’avec Discord Desktop. Pour produire l’APK complet :
 
 1. Activer Discord Social SDK pour l’application dans le portail Discord.
-2. Télécharger l’archive **Standalone C++** Android 1.10+ et l’extraire dans `vendor/discord-social-sdk`.
-3. Installer Android NDK et CMake.
-4. Construire le pont natif :
+2. Dans `OAuth2`, activer **Public Client** et enregistrer `discord-1540336569532031116:/authorize/callback` comme redirection.
+3. Télécharger l’archive **Standalone C++** Android 1.10+ et l’extraire dans `vendor/discord-social-sdk`.
+4. Installer Android NDK et CMake.
+5. Construire le pont natif :
 
 ```powershell
 ./scripts/build-android-native.ps1 `
@@ -64,12 +65,12 @@ Discord Social SDK **1.10 ou plus récent** prend en charge Android 7+ et la pub
   -CMakePath C:/Android/Sdk/cmake/<version>/bin/cmake.exe
 ```
 
-5. Construire l’APK avec `./scripts/build-android.ps1`.
-6. Dans l’application, autoriser l’accès média, toucher le logo Discord à droite de `Paramètres`, puis lancer un morceau dans Deezer. La connexion et la publication sont automatiques ; l’Application ID est déjà intégré.
+6. Construire l’APK avec `./scripts/build-android.ps1`.
+7. Dans l’application, autoriser l’accès média, toucher le logo Discord à droite de `Paramètres`, puis accepter la liaison affichée par Discord. Cette autorisation n’est demandée qu’à la première connexion.
 
-Le manifeste déclare explicitement `com.discord`, requis par Android 11+, et le pont natif utilise le compte déjà ouvert dans Discord : pas de serveur, OAuth ou jeton utilisateur.
+Le manifeste déclare la redirection mobile officielle et `com.discord`, requis par Android 11+. Les jetons OAuth sont conservés uniquement dans le stockage privé non sauvegardable de l’application, renouvelés avant expiration et supprimés lors de `Se déconnecter`. Aucun serveur n’est nécessaire.
 
-Le mode arrière-plan Android utilise une notification permanente : elle est nécessaire pour améliorer la continuité de la détection lorsque l’écran est éteint. L’activité est republiée à intervalle contrôlé et le pont Discord est recréé après une interruption, indépendamment de la connexion à un salon vocal. Android peut malgré tout arrêter une application selon les règles d’économie d’énergie du constructeur.
+Le mode arrière-plan Android utilise une notification permanente : elle est nécessaire pour améliorer la continuité de la détection lorsque l’écran est éteint. La connexion Discord est maintenue même sans musique, vérifiée toutes les dix secondes, et l’activité est republiée toutes les vingt secondes, indépendamment de la connexion à un salon vocal. Android peut malgré tout arrêter une application selon les règles d’économie d’énergie du constructeur ; après un redémarrage ou un arrêt forcé, il faut rouvrir Deezer Presence une fois.
 
 ## Fonctionnement « H24 »
 

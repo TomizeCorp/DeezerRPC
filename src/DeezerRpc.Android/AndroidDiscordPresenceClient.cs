@@ -14,7 +14,7 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
     {
         if (!DiscordSocialSdkInitializer.IsInitialized)
         {
-            error = "Appuie sur le logo Discord dans Deezer Presence";
+            error = "Ouvre Deezer Presence pour reconnecter Discord";
             return false;
         }
 
@@ -104,8 +104,13 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
         }
     }
 
-    public static bool TryConnectAccount(string applicationId, out DiscordAccountProfile? profile, out string error)
+    public static bool TryAuthorizeAccount(
+        string applicationId,
+        out DiscordOAuthTokens? tokens,
+        out DiscordAccountProfile? profile,
+        out string error)
     {
+        tokens = null;
         profile = null;
         try
         {
@@ -114,11 +119,42 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
                 error = "Initialisation Discord Android impossible";
                 return false;
             }
-            if (!TryReadConnectedUser(applicationId, out profile))
+
+            var accessToken = new StringBuilder(4096);
+            var refreshToken = new StringBuilder(4096);
+            var authorizeResult = Native.Authorize(
+                applicationId,
+                accessToken,
+                accessToken.Capacity,
+                refreshToken,
+                refreshToken.Capacity,
+                out var expiresInSeconds);
+            if (authorizeResult != 0)
             {
-                error = "Ouvre Discord puis reviens dans Deezer Presence";
+                error = authorizeResult switch
+                {
+                    3 => "Connexion Discord annulée ou expirée",
+                    4 => "Autorisation Discord refusée",
+                    6 => "Échange OAuth refusé — vérifie le client public et la redirection Discord",
+                    _ => "Connexion OAuth Discord impossible"
+                };
                 return false;
             }
+
+            tokens = new DiscordOAuthTokens
+            {
+                AccessToken = accessToken.ToString(),
+                RefreshToken = refreshToken.ToString(),
+                ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresInSeconds))
+            };
+
+            if (Native.ConnectAuthenticated(applicationId, tokens.AccessToken) != 0)
+            {
+                error = "Compte lié — connexion Discord en attente du réseau";
+                return true;
+            }
+
+            TryReadConnectedUser(applicationId, out profile);
 
             error = string.Empty;
             return true;
@@ -131,6 +167,112 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
         catch (EntryPointNotFoundException)
         {
             error = "Pont natif Discord incompatible";
+            return false;
+        }
+    }
+
+    public static bool TryRestoreAccount(
+        string applicationId,
+        DiscordOAuthTokens tokens,
+        out DiscordAccountProfile? profile,
+        out string error)
+    {
+        profile = null;
+        try
+        {
+            if (Native.Initialize(applicationId) != 0)
+            {
+                error = "Initialisation Discord Android impossible";
+                return false;
+            }
+
+            var result = Native.ConnectAuthenticated(applicationId, tokens.AccessToken);
+            if (result != 0)
+            {
+                error = result switch
+                {
+                    2 => "Discord n’a pas répondu à temps",
+                    3 => "Jeton Discord refusé",
+                    4 => "Connexion Discord interrompue — nouvelle tentative automatique",
+                    _ => "Connexion Discord mobile impossible"
+                };
+                return false;
+            }
+
+            TryReadConnectedUser(applicationId, out profile);
+            error = string.Empty;
+            return true;
+        }
+        catch (DllNotFoundException)
+        {
+            error = "SDK Discord Social 1.10+ absent de cette compilation";
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            error = "Pont natif Discord incompatible";
+            return false;
+        }
+    }
+
+    public static bool TryRefreshTokens(
+        string applicationId,
+        DiscordOAuthTokens current,
+        out DiscordOAuthTokens? refreshed,
+        out string error)
+    {
+        refreshed = null;
+        try
+        {
+            var accessToken = new StringBuilder(4096);
+            var refreshToken = new StringBuilder(4096);
+            var result = Native.RefreshToken(
+                applicationId,
+                current.RefreshToken,
+                accessToken,
+                accessToken.Capacity,
+                refreshToken,
+                refreshToken.Capacity,
+                out var expiresInSeconds);
+            if (result != 0)
+            {
+                error = "Renouvellement Discord impossible — reconnecte ton compte";
+                return false;
+            }
+
+            refreshed = new DiscordOAuthTokens
+            {
+                AccessToken = accessToken.ToString(),
+                RefreshToken = refreshToken.ToString(),
+                ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresInSeconds))
+            };
+            error = string.Empty;
+            return true;
+        }
+        catch (DllNotFoundException)
+        {
+            error = "SDK Discord Social 1.10+ absent de cette compilation";
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            error = "Pont natif Discord incompatible";
+            return false;
+        }
+    }
+
+    public static bool IsAuthenticatedConnectionReady()
+    {
+        try
+        {
+            return Native.ConnectionStatus() == 3;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
             return false;
         }
     }
@@ -254,6 +396,33 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
             [MarshalAs(UnmanagedType.LPUTF8Str)] string smallUrl,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string buttonLabel,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string buttonUrl);
+
+        [DllImport(LibraryName, EntryPoint = "drpc_authorize", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int Authorize(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string applicationId,
+            [Out] StringBuilder accessToken,
+            int accessTokenCapacity,
+            [Out] StringBuilder refreshToken,
+            int refreshTokenCapacity,
+            out long expiresInSeconds);
+
+        [DllImport(LibraryName, EntryPoint = "drpc_refresh_token", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int RefreshToken(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string applicationId,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string currentRefreshToken,
+            [Out] StringBuilder accessToken,
+            int accessTokenCapacity,
+            [Out] StringBuilder refreshToken,
+            int refreshTokenCapacity,
+            out long expiresInSeconds);
+
+        [DllImport(LibraryName, EntryPoint = "drpc_connect_authenticated", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ConnectAuthenticated(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string applicationId,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string accessToken);
+
+        [DllImport(LibraryName, EntryPoint = "drpc_connection_status", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ConnectionStatus();
 
         [DllImport(LibraryName, EntryPoint = "drpc_clear_activity", CallingConvention = CallingConvention.Cdecl)]
         public static extern void ClearActivity();

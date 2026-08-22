@@ -30,6 +30,13 @@ internal sealed record DiscordAccountProfile
     public string AvatarUrl { get; init; } = string.Empty;
 }
 
+internal sealed record DiscordOAuthTokens
+{
+    public required string AccessToken { get; init; }
+    public required string RefreshToken { get; init; }
+    public DateTimeOffset ExpiresAt { get; init; }
+}
+
 internal static class AndroidSettings
 {
     private const string PreferencesName = "deezerrpc";
@@ -108,6 +115,43 @@ internal static class AndroidSettings
     public static void SetDiscordConnectionEnabled(Context context, bool enabled) =>
         Preferences(context).Edit()?.PutBoolean("discord_connection_enabled", enabled)?.Apply();
 
+    public static DiscordOAuthTokens? GetDiscordOAuthTokens(Context context)
+    {
+        var preferences = Preferences(context);
+        var accessToken = preferences.GetString("discord_oauth_access", string.Empty) ?? string.Empty;
+        var refreshToken = preferences.GetString("discord_oauth_refresh", string.Empty) ?? string.Empty;
+        var expiresAt = preferences.GetLong("discord_oauth_expires_at", 0);
+        if (string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(refreshToken) || expiresAt <= 0)
+        {
+            return null;
+        }
+
+        return new DiscordOAuthTokens
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(expiresAt)
+        };
+    }
+
+    public static void SaveDiscordOAuthTokens(Context context, DiscordOAuthTokens tokens) =>
+        Preferences(context).Edit()!
+            .PutString("discord_oauth_access", tokens.AccessToken)!
+            .PutString("discord_oauth_refresh", tokens.RefreshToken)!
+            .PutLong("discord_oauth_expires_at", tokens.ExpiresAt.ToUnixTimeSeconds())!
+            .PutBoolean("discord_connection_enabled", true)!
+            .Apply();
+
+    public static void ClearDiscordOAuthTokens(Context context)
+    {
+        var edit = Preferences(context).Edit();
+        edit?.Remove("discord_oauth_access");
+        edit?.Remove("discord_oauth_refresh");
+        edit?.Remove("discord_oauth_expires_at");
+        edit?.PutBoolean("discord_account_connected", false);
+        edit?.Apply();
+    }
+
     public static void DisconnectDiscordAccount(Context context)
     {
         var edit = Preferences(context).Edit();
@@ -118,6 +162,9 @@ internal static class AndroidSettings
         edit?.Remove("discord_display_name");
         edit?.Remove("discord_username");
         edit?.Remove("discord_avatar_url");
+        edit?.Remove("discord_oauth_access");
+        edit?.Remove("discord_oauth_refresh");
+        edit?.Remove("discord_oauth_expires_at");
         edit?.Apply();
     }
 

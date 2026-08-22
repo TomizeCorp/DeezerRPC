@@ -5,8 +5,8 @@
     <OutputType>Exe</OutputType>
     <ApplicationId>com.tomize.deezerrpc</ApplicationId>
     <ApplicationTitle>DeezerRPC</ApplicationTitle>
-    <ApplicationVersion>20</ApplicationVersion>
-    <ApplicationDisplayVersion>1.1.19</ApplicationDisplayVersion>
+    <ApplicationVersion>21</ApplicationVersion>
+    <ApplicationDisplayVersion>1.1.20</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidUseAapt2>true</AndroidUseAapt2>
     <AndroidLinkMode>SdkOnly</AndroidLinkMode>
@@ -14,6 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DeezerRpc.Core\DeezerRpc.Core.csproj" />
+    <PackageReference Include="Xamarin.AndroidX.Browser" Version="1.8.0.11" />
   </ItemGroup>
   <ItemGroup Condition="Exists('..\..\vendor\discord-social-sdk\lib\release\discord_partner_sdk.aar')">
     <AndroidNativeLibrary Include="native\prebuilt-full\**\libdeezerrpc_discord_bridge.so" />

@@ -2,7 +2,7 @@
 
 ## Application
 
-L’Application ID `1540336569532031116` est intégré à DeezerRPC. L’utilisateur final n’a aucun identifiant à saisir. DeezerRPC ne demande jamais le secret client, un token de bot ou le token du compte utilisateur.
+L’Application ID `1540336569532031116` est intégré à DeezerRPC. L’utilisateur final n’a aucun identifiant à saisir. DeezerRPC ne demande jamais le secret client, un token de bot, un mot de passe ou un token copié manuellement.
 
 Sur Windows, le bouton de connexion ouvre Discord Desktop et Deezer Presence détecte automatiquement le compte déjà connecté par le canal RPC local. Il n’existe donc aucun écran d’Application ID ou de token dans l’application.
 
@@ -15,13 +15,15 @@ Donnez à l’application un nom court, par exemple `Deezer`, car Discord affich
 Dans la rubrique Discord Social SDK de l’application :
 
 1. activez l’intégration ;
-2. téléchargez la version Standalone C++ 1.10+ contenant Android ;
-3. conservez `include/discordpp.h` et `lib/release/discord_partner_sdk.aar` ;
-4. exécutez `scripts/build-android-native.ps1`.
+2. dans `OAuth2`, activez **Public Client** ;
+3. ajoutez exactement `discord-1540336569532031116:/authorize/callback` aux redirections ;
+4. téléchargez la version Standalone C++ 1.10+ contenant Android ;
+5. conservez `include/discordpp.h` et `lib/release/discord_partner_sdk.aar` ;
+6. exécutez `scripts/build-android-native.ps1`.
 
 La version 1.10 est nécessaire : elle permet au SDK de publier une présence vers le client Discord Android connecté. L’archive propriétaire doit être ajoutée avant de produire l’APK complet ; la release officielle inclut l’AAR Android et le pont natif compilé.
 
-Sur Android, le logo Discord situé à droite de `Paramètres` appelle `DiscordSocialSdkInit.setEngineActivity(...)` avec le chargeur de classes de l’application avant toute création du client natif. Le compte ouvert dans Discord est lu par le SDK pour afficher sa photo et son nom dans l’aperçu local ; `Se déconnecter` coupe le pont et retire l’activité. Le service de détection refuse d’appeler le SDK tant que l’initialisation Android n’est pas terminée, afin d’éviter un crash lorsque le contexte n’est pas encore disponible.
+Sur Android, le logo Discord situé à droite de `Paramètres` démarre l’autorisation OAuth2 officielle avec PKCE. Après acceptation, le SDK échange le code sans secret client, connecte le compte, conserve les jetons dans le stockage privé non sauvegardable de l’APK et les renouvelle avant expiration. Le service garde ensuite le client Discord connecté même sans lecture et le recrée automatiquement après une coupure. `Se déconnecter` coupe le pont, retire l’activité et efface les jetons locaux.
 
 ## Vérification visuelle
 

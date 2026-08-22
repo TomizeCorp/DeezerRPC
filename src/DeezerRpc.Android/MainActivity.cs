@@ -75,7 +75,7 @@ public sealed class MainActivity : Activity
         base.OnResume();
         if (AndroidSettings.IsDiscordConnectionEnabled(this) &&
             DiscordSocialSdkInitializer.IsInitialized &&
-            !AndroidSettings.GetPlayback(this).DiscordAccountConnected)
+            AndroidSettings.GetDiscordOAuthTokens(this) is not null)
         {
             _ = ConnectDiscordAccountAsync();
         }
@@ -517,10 +517,16 @@ public sealed class MainActivity : Activity
             return;
         }
 
-        AndroidSettings.SetLastStatus(this, "Discord initialisé — lance une musique");
+        AndroidSettings.SetLastStatus(this, "Ouverture de la connexion sécurisée Discord…");
         RefreshState();
-        _ = ConnectDiscordAccountAsync();
-        OpenDiscord();
+        if (AndroidSettings.GetDiscordOAuthTokens(this) is not null)
+        {
+            _ = ConnectDiscordAccountAsync();
+        }
+        else
+        {
+            _ = AuthorizeDiscordAccountAsync();
+        }
     }
 
     private async Task ConnectDiscordAccountAsync()
@@ -533,29 +539,64 @@ public sealed class MainActivity : Activity
         _connectingDiscord = true;
         try
         {
-            DiscordAccountProfile? profile = null;
-            var error = string.Empty;
-            var connected = await Task.Run(() =>
-                AndroidDiscordPresenceClient.TryConnectAccount(
-                    AppIdentity.DiscordApplicationId,
-                    out profile,
-                    out error));
+            var result = await DiscordMobileConnection.EnsureConnectedAsync(this);
             if (!AndroidSettings.IsDiscordConnectionEnabled(this))
             {
                 return;
             }
 
-            if (connected && profile is not null)
+            if (result.Connected)
             {
-                AndroidSettings.SaveDiscordAccount(this, profile);
                 if (AndroidSettings.GetPlayback(this).Track is null)
                 {
-                    AndroidSettings.SetLastStatus(this, $"Discord connecté — {profile.DisplayName}");
+                    var name = string.IsNullOrWhiteSpace(result.Profile?.DisplayName)
+                        ? "compte lié"
+                        : result.Profile.DisplayName;
+                    AndroidSettings.SetLastStatus(this, $"Discord connecté — {name}");
                 }
             }
             else if (AndroidSettings.GetPlayback(this).Track is null)
             {
-                AndroidSettings.SetLastStatus(this, error);
+                AndroidSettings.SetLastStatus(this, result.Error);
+            }
+        }
+        finally
+        {
+            _connectingDiscord = false;
+            RunOnUiThread(RefreshState);
+        }
+    }
+
+    private async Task AuthorizeDiscordAccountAsync()
+    {
+        if (_connectingDiscord)
+        {
+            return;
+        }
+
+        _connectingDiscord = true;
+        try
+        {
+            var result = await DiscordMobileConnection.AuthorizeAsync(this);
+            if (!AndroidSettings.IsDiscordConnectionEnabled(this))
+            {
+                return;
+            }
+
+            if (result.Connected)
+            {
+                var name = string.IsNullOrWhiteSpace(result.Profile?.DisplayName)
+                    ? "compte lié"
+                    : result.Profile.DisplayName;
+                AndroidSettings.SetLastStatus(this, $"Discord connecté — {name}");
+            }
+            else if (AndroidSettings.GetDiscordOAuthTokens(this) is not null)
+            {
+                AndroidSettings.SetLastStatus(this, "Compte Discord lié — reconnexion automatique en cours");
+            }
+            else
+            {
+                AndroidSettings.SetLastStatus(this, result.Error);
             }
         }
         finally
@@ -689,18 +730,6 @@ public sealed class MainActivity : Activity
         {
             // The monochrome application icon remains as a local fallback.
         }
-    }
-
-    private void OpenDiscord()
-    {
-        var launchIntent = PackageManager?.GetLaunchIntentForPackage("com.discord");
-        if (launchIntent is null)
-        {
-            Toast.MakeText(this, "Discord Android n’est pas installé", ToastLength.Long)?.Show();
-            return;
-        }
-
-        StartActivity(launchIntent);
     }
 
     private void OpenTrack()
