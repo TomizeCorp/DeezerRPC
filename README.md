@@ -1,6 +1,6 @@
 # DeezerRPC
 
-DeezerRPC publie le morceau actuellement joué sur Deezer dans la Rich Presence Discord, avec la même règle visuelle sur Android et Windows : **pochette, petit logo Deezer monochrome, titre, artiste, album, progression native et bouton Deezer**.
+DeezerRPC publie le morceau actuellement joué sur Deezer dans la Rich Presence Discord, avec la même règle visuelle sur Android et Windows : **pochette seule, titre, artiste, album, progression native et bouton Deezer**.
 
 ## État du projet
 
@@ -20,13 +20,13 @@ Le mapping partagé est volontairement strict :
 - `details` : nom du morceau ;
 - `state` : artiste uniquement ; l’album n’est jamais répété à côté de l’artiste ;
 - `assets.large_image` : URL HTTPS de la pochette Deezer ;
-- `assets.small_image` : logo Deezer monochrome blanc sur fond transparent, superposé par Discord à la pochette ;
+- aucune `small_image` : la pochette reste seule, sans logo ni icône superposée ;
 - `timestamps.start/end` : progression rendue nativement par Discord pendant la lecture ;
 - barre pleine largeur `Écouter sur Deezer` sous le morceau : lien direct lorsqu’il est résolu, recherche titre/artiste sur Deezer en secours dans l’interface ;
-- le titre, la pochette et le petit logo sont également cliquables dans Discord et ouvrent le morceau — ou sa recherche Deezer de secours ;
+- le titre et la pochette sont également cliquables dans Discord et ouvrent le morceau — ou sa recherche Deezer de secours ;
 - l’application affiche le titre, puis l’artiste, puis l’album sur des lignes distinctes ; la ligne album disparaît lorsqu’elle n’est pas disponible.
 
-Sur Android, les logos Discord et Deezer sont dessinés en monochrome et reprennent automatiquement la couleur du texte voisin. L’accès Discord se trouve à droite de `Paramètres` dans la navigation inférieure : une fois le compte détecté, sa photo ouvre un aperçu du profil et l’action `Se déconnecter`. L’ancienne carte d’état et l’ancien bouton `Connecter Discord` ont été retirés de l’accueil.
+Sur Android, les logos de l’interface sont dessinés en monochrome et reprennent automatiquement la couleur du texte voisin. L’accès Discord se trouve à droite de `Paramètres` dans la navigation inférieure : une fois le compte détecté, sa photo ouvre un aperçu du profil et l’action `Se déconnecter`. L’ancienne carte d’état et l’ancien bouton `Connecter Discord` ont été retirés de l’accueil.
 
 La résolution de pochette vérifie l’album fourni par Deezer, accepte ses variantes légitimes (deluxe, remaster, collaborateurs) et relance une recherche élargie lorsque la recherche stricte ne renvoie rien. Elle gère également les résultats où Deezer ne renvoie que l’artiste principal — par exemple `David Guetta` pour un morceau crédité `David Guetta & Bebe Rexha` dans le lecteur.
 
@@ -40,7 +40,7 @@ Discord n’offre que deux lignes de texte personnalisables en plus du nom de l�
 
 L’Application ID `1540336569532031116` est intégré à la compilation : aucun identifiant ou réglage Discord n’est demandé à l’utilisateur.
 
-Sur Windows, « connecté » signifie que Deezer Presence utilise automatiquement le compte déjà authentifié dans Discord Desktop. La connexion RPC est désormais établie dès le démarrage, même sans musique en cours, puis retentée automatiquement toutes les trois secondes si Discord vient seulement de s’ouvrir. L’application ne demande et ne conserve donc jamais le mot de passe, le secret client ou un token utilisateur Discord.
+Sur Windows, « connecté » signifie que Deezer Presence utilise automatiquement le compte déjà authentifié dans Discord Desktop. La connexion RPC est établie dès le démarrage, même sans musique en cours, puis retentée automatiquement toutes les trois secondes si Discord vient seulement de s’ouvrir. L’activité est aussi republiée toutes les vingt secondes pour récupérer d’une perte silencieuse côté Discord, indépendamment d’une connexion vocale. L’application ne demande et ne conserve donc jamais le mot de passe, le secret client ou un token utilisateur Discord.
 
 Le logo Discord à droite de `Paramètres` indique cette connexion : après détection, il affiche la photo du compte. Un clic ouvre le nom du profil et l’action `Se déconnecter de Deezer Presence`; lorsqu’il est déconnecté, un clic réactive la connexion locale et ouvre Discord Desktop si nécessaire.
 
@@ -95,6 +95,6 @@ Pour compiler l’APK de détection sans le binaire Discord propriétaire :
 - `src/DeezerRpc.Core` : modèle de morceau, résolution catalogue Deezer et construction Rich Presence partagés ;
 - `src/DeezerRpc.Windows` : GSMTC, client RPC local Discord, zone de notification et démarrage Windows ;
 - `src/DeezerRpc.Android` : `MediaSessionManager`, service en arrière-plan et pont Discord Social SDK ;
-- `tests/DeezerRpc.Core.Tests` : contrats du design, dont la pochette, le logo Deezer monochrome et le bouton direct.
+- `tests/DeezerRpc.Core.Tests` : contrats du design, dont la pochette seule et le bouton direct.
 
 Références techniques : [Rich Presence Discord](https://docs.discord.com/developers/discord-social-sdk/development-guides/setting-rich-presence), [compatibilité Discord Social SDK](https://docs.discord.com/developers/discord-social-sdk/core-concepts/platform-compatibility), [GSMTC Windows](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager), [MediaSessionManager Android](https://developer.android.com/reference/android/media/session/MediaSessionManager).

@@ -3,8 +3,6 @@ namespace DeezerRpc.Core;
 public sealed class DiscordActivityBuilder
 {
     private const int TextLimit = 128;
-    public const string DeezerMonochromeLogoUrl =
-        "https://raw.githubusercontent.com/TomizeCorp/DeezerRPC/main/assets/discord-deezer-monochrome.png";
 
     public DiscordActivity Build(NowPlayingTrack track, DateTimeOffset now, PresenceOptions? options = null)
     {
@@ -52,10 +50,7 @@ public sealed class DiscordActivityBuilder
         {
             LargeImage = largeImage,
             LargeText = largeText,
-            LargeUrl = listenUrl,
-            SmallImage = DeezerMonochromeLogoUrl,
-            SmallText = "Deezer",
-            SmallUrl = listenUrl
+            LargeUrl = listenUrl
         };
 
         IReadOnlyList<DiscordButton>? buttons = null;

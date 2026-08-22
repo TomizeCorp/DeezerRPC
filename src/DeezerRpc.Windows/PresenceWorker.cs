@@ -5,6 +5,7 @@ namespace DeezerRpc.Windows;
 internal sealed class PresenceWorker : IAsyncDisposable
 {
     private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan PresenceRefreshInterval = TimeSpan.FromSeconds(20);
 
     private readonly AppSettings _settings;
     private readonly Action<PresenceSnapshot> _reportSnapshot;
@@ -18,6 +19,7 @@ internal sealed class PresenceWorker : IAsyncDisposable
     private NowPlayingTrack? _lastPublishedTrack;
     private bool _presenceWasSet;
     private DateTimeOffset _lastDiscordAttempt = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastPublishedAt = DateTimeOffset.MinValue;
 
     public PresenceWorker(AppSettings settings, Action<PresenceSnapshot> reportSnapshot)
     {
@@ -158,10 +160,11 @@ internal sealed class PresenceWorker : IAsyncDisposable
             track.CoverUrl,
             track.TrackUrl);
         var shouldReconnect = !_discord.IsConnected && now - _lastDiscordAttempt >= ReconnectInterval;
+        var refreshDue = now - _lastPublishedAt >= PresenceRefreshInterval;
         var seekDetected = _lastPublishedTrack is not null &&
             _lastPublishedTrack.Identity == track.Identity &&
             Math.Abs((_lastPublishedTrack.ProjectPosition(now) - track.ProjectPosition(now)).TotalSeconds) >= 5;
-        if (fingerprint == _lastFingerprint && !seekDetected && !shouldReconnect)
+        if (fingerprint == _lastFingerprint && !seekDetected && !shouldReconnect && !refreshDue)
         {
             return;
         }
@@ -180,6 +183,7 @@ internal sealed class PresenceWorker : IAsyncDisposable
         {
             await _discord.SetActivityAsync(activity, cancellationToken);
             _presenceWasSet = true;
+            _lastPublishedAt = now;
             Report($"Publié — {track.Title}", track);
         }
         catch (IOException)
@@ -219,6 +223,7 @@ internal sealed class PresenceWorker : IAsyncDisposable
         finally
         {
             _presenceWasSet = false;
+            _lastPublishedAt = DateTimeOffset.MinValue;
         }
     }
 
