@@ -38,15 +38,15 @@ public sealed class MainActivity : Activity
     private TextView? _currentTime;
     private TextView? _duration;
     private ProgressBar? _progress;
-    private TextView? _discordState;
-    private TextView? _discordSubstate;
     private TextView? _runtimeState;
     private TextView? _permissionState;
     private global::Android.Widget.Switch? _presenceSwitch;
     private System.Threading.Timer? _refreshTimer;
     private string _page = "home";
     private string? _coverUrl;
+    private string? _navigationSignature;
     private bool _synchronizing;
+    private bool _connectingDiscord;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -55,6 +55,13 @@ public sealed class MainActivity : Activity
         Window?.SetNavigationBarColor(Background);
         SetContentView(BuildShell());
         ShowPage("home");
+
+        if (AndroidSettings.IsDiscordConnectionEnabled(this) &&
+            !DiscordSocialSdkInitializer.IsInitialized &&
+            !DiscordSocialSdkInitializer.TryInitialize(this, out var discordError))
+        {
+            AndroidSettings.SetLastStatus(this, discordError);
+        }
 
         if (OperatingSystem.IsAndroidVersionAtLeast(33) &&
             CheckSelfPermission("android.permission.POST_NOTIFICATIONS") != Permission.Granted)
@@ -66,6 +73,12 @@ public sealed class MainActivity : Activity
     protected override void OnResume()
     {
         base.OnResume();
+        if (AndroidSettings.IsDiscordConnectionEnabled(this) &&
+            DiscordSocialSdkInitializer.IsInitialized &&
+            !AndroidSettings.GetPlayback(this).DiscordAccountConnected)
+        {
+            _ = ConnectDiscordAccountAsync();
+        }
         RefreshState();
         _refreshTimer?.Dispose();
         _refreshTimer = new System.Threading.Timer(
@@ -122,6 +135,52 @@ public sealed class MainActivity : Activity
         return item;
     }
 
+    private View DiscordNavItem(AndroidPlaybackSnapshot snapshot)
+    {
+        var item = new LinearLayout(this)
+        {
+            Orientation = Orientation.Vertical,
+            Clickable = true,
+            Focusable = true
+        };
+        item.SetGravity(GravityFlags.Center);
+        item.SetPadding(0, Dp(7), 0, Dp(5));
+
+        if (snapshot.DiscordAccountConnected &&
+            System.Uri.TryCreate(snapshot.DiscordAccount?.AvatarUrl, UriKind.Absolute, out var avatarUri))
+        {
+            var avatar = new ImageView(this)
+            {
+                ClipToOutline = true,
+                Background = Circle(Parse("#252932"))
+            };
+            avatar.SetScaleType(ImageView.ScaleType.CenterCrop);
+            avatar.SetImageResource(Resource.Mipmap.appicon);
+            item.AddView(avatar, new LinearLayout.LayoutParams(Dp(26), Dp(26)));
+            _ = LoadAvatarAsync(avatarUri, avatar);
+        }
+        else
+        {
+            item.AddView(
+                new MonochromeLogoView(this, MonochromeLogo.Discord, Muted),
+                new LinearLayout.LayoutParams(Dp(27), Dp(27)));
+        }
+
+        item.AddView(Text("Discord", 10F, Muted, gravity: GravityFlags.Center));
+        item.Click += (_, _) =>
+        {
+            if (AndroidSettings.GetPlayback(this).DiscordAccountConnected)
+            {
+                ShowDiscordProfile();
+            }
+            else
+            {
+                InitializeAndOpenDiscord();
+            }
+        };
+        return item;
+    }
+
     private void ShowPage(string page)
     {
         _page = page;
@@ -145,6 +204,9 @@ public sealed class MainActivity : Activity
         _bottomNavigation.RemoveAllViews();
         _bottomNavigation.AddView(NavItem("⌂", "Accueil", "home"), new LinearLayout.LayoutParams(0, Dp(68), 1F));
         _bottomNavigation.AddView(NavItem("⚙", "Paramètres", "settings"), new LinearLayout.LayoutParams(0, Dp(68), 1F));
+        var snapshot = AndroidSettings.GetPlayback(this);
+        _bottomNavigation.AddView(DiscordNavItem(snapshot), new LinearLayout.LayoutParams(0, Dp(68), 1F));
+        _navigationSignature = NavigationSignature(snapshot);
     }
 
     private View BuildHomePage()
@@ -204,25 +266,9 @@ public sealed class MainActivity : Activity
         playback.AddView(progressRow);
         content.AddView(CardView(playback));
 
-        var deezer = OutlineButton("🔗   Écouter sur Deezer   ↗");
+        var deezer = MonochromeButton(MonochromeLogo.Deezer, "Écouter sur Deezer");
         deezer.Click += (_, _) => OpenTrack();
         content.AddView(deezer, Margin(top: 12, height: 54));
-
-        var discordContent = new LinearLayout(this) { Orientation = Orientation.Horizontal };
-        discordContent.SetGravity(GravityFlags.CenterVertical);
-        var discordIcon = Text("●", 28F, Purple, gravity: GravityFlags.Center);
-        discordContent.AddView(discordIcon, new LinearLayout.LayoutParams(Dp(54), Dp(70)));
-        var discordText = Vertical(0, 0);
-        _discordState = Text("Connexion Discord", 14F, White, bold: true);
-        _discordSubstate = Text("Appuie sur Connecter Discord", 11F, Muted);
-        discordText.AddView(_discordState);
-        discordText.AddView(_discordSubstate);
-        discordContent.AddView(discordText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1F));
-        content.AddView(CardView(discordContent), Margin(top: 12));
-
-        var connect = OutlineButton("Connecter Discord");
-        connect.Click += (_, _) => InitializeAndOpenDiscord();
-        content.AddView(connect, Margin(top: 10, height: 52));
 
         _runtimeState = Text("Initialisation…", 11F, Muted);
         _runtimeState.SetPadding(Dp(4), Dp(14), Dp(4), Dp(8));
@@ -305,6 +351,25 @@ public sealed class MainActivity : Activity
         return button;
     }
 
+    private View MonochromeButton(MonochromeLogo logo, string text)
+    {
+        var button = new LinearLayout(this)
+        {
+            Orientation = Orientation.Horizontal,
+            Clickable = true,
+            Focusable = true,
+            Background = Rounded(Card, Purple, 16)
+        };
+        button.SetGravity(GravityFlags.Center);
+        button.AddView(
+            new MonochromeLogoView(this, logo, Purple),
+            new LinearLayout.LayoutParams(Dp(22), Dp(22)));
+        var label = Text(text, 14F, Purple, bold: true, gravity: GravityFlags.Center);
+        label.SetPadding(Dp(10), 0, 0, 0);
+        button.AddView(label, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.MatchParent));
+        return button;
+    }
+
     private View CardView(View content, int bottomMargin = 0)
     {
         var frame = new FrameLayout(this) { Background = Rounded(Card, Border, 18) };
@@ -352,6 +417,14 @@ public sealed class MainActivity : Activity
         return background;
     }
 
+    private GradientDrawable Circle(global::Android.Graphics.Color fill)
+    {
+        var background = new GradientDrawable();
+        background.SetShape(ShapeType.Oval);
+        background.SetColor(fill);
+        return background;
+    }
+
     private int Dp(int value) => (int)(value * (Resources?.DisplayMetrics?.Density ?? 1F));
 
     private void Save(Func<AndroidAppSettings, AndroidAppSettings> update)
@@ -371,6 +444,13 @@ public sealed class MainActivity : Activity
             _permissionState.SetTextColor(permission ? Green : Muted);
         }
 
+        var snapshot = AndroidSettings.GetPlayback(this);
+        var navigationSignature = NavigationSignature(snapshot);
+        if (!string.Equals(_navigationSignature, navigationSignature, StringComparison.Ordinal))
+        {
+            RefreshNavigation();
+        }
+
         if (_page != "home" || _trackTitle is null)
         {
             return;
@@ -384,7 +464,6 @@ public sealed class MainActivity : Activity
             _synchronizing = false;
         }
 
-        var snapshot = AndroidSettings.GetPlayback(this);
         var track = snapshot.Track;
         if (track is null)
         {
@@ -418,13 +497,19 @@ public sealed class MainActivity : Activity
             _ = LoadCoverAsync(track.CoverUrl);
         }
 
-        _discordState!.Text = snapshot.DiscordConnected ? "Discord connecté" : "Connexion Discord";
-        _discordSubstate!.Text = snapshot.DiscordConnected ? "Rich Presence active" : "Appuie sur Connecter Discord";
         _runtimeState!.Text = snapshot.StatusText;
     }
 
+    private static string NavigationSignature(AndroidPlaybackSnapshot snapshot) => string.Join('|',
+        snapshot.DiscordAccountConnected,
+        snapshot.DiscordAccount?.UserId,
+        snapshot.DiscordAccount?.DisplayName,
+        snapshot.DiscordAccount?.Username,
+        snapshot.DiscordAccount?.AvatarUrl);
+
     private void InitializeAndOpenDiscord()
     {
+        AndroidSettings.SetDiscordConnectionEnabled(this, true);
         if (!DiscordSocialSdkInitializer.TryInitialize(this, out var error))
         {
             AndroidSettings.SetLastStatus(this, error);
@@ -434,7 +519,131 @@ public sealed class MainActivity : Activity
 
         AndroidSettings.SetLastStatus(this, "Discord initialisé — lance une musique");
         RefreshState();
+        _ = ConnectDiscordAccountAsync();
         OpenDiscord();
+    }
+
+    private async Task ConnectDiscordAccountAsync()
+    {
+        if (_connectingDiscord)
+        {
+            return;
+        }
+
+        _connectingDiscord = true;
+        try
+        {
+            DiscordAccountProfile? profile = null;
+            var error = string.Empty;
+            var connected = await Task.Run(() =>
+                AndroidDiscordPresenceClient.TryConnectAccount(
+                    AppIdentity.DiscordApplicationId,
+                    out profile,
+                    out error));
+            if (!AndroidSettings.IsDiscordConnectionEnabled(this))
+            {
+                return;
+            }
+
+            if (connected && profile is not null)
+            {
+                AndroidSettings.SaveDiscordAccount(this, profile);
+                if (AndroidSettings.GetPlayback(this).Track is null)
+                {
+                    AndroidSettings.SetLastStatus(this, $"Discord connecté — {profile.DisplayName}");
+                }
+            }
+            else if (AndroidSettings.GetPlayback(this).Track is null)
+            {
+                AndroidSettings.SetLastStatus(this, error);
+            }
+        }
+        finally
+        {
+            _connectingDiscord = false;
+            RunOnUiThread(RefreshState);
+        }
+    }
+
+    private void ShowDiscordProfile()
+    {
+        var snapshot = AndroidSettings.GetPlayback(this);
+        if (!snapshot.DiscordAccountConnected)
+        {
+            InitializeAndOpenDiscord();
+            return;
+        }
+
+        var profile = snapshot.DiscordAccount;
+        var dialog = new Dialog(this);
+        var content = Vertical(Dp(24), Dp(22));
+        content.Background = Rounded(Card, Border, 24);
+
+        if (System.Uri.TryCreate(profile?.AvatarUrl, UriKind.Absolute, out var avatarUri))
+        {
+            var avatar = new ImageView(this)
+            {
+                ClipToOutline = true,
+                Background = Circle(Parse("#252932"))
+            };
+            avatar.SetScaleType(ImageView.ScaleType.CenterCrop);
+            avatar.SetImageResource(Resource.Mipmap.appicon);
+            var avatarParams = new LinearLayout.LayoutParams(Dp(76), Dp(76))
+            {
+                Gravity = GravityFlags.CenterHorizontal
+            };
+            content.AddView(avatar, avatarParams);
+            _ = LoadAvatarAsync(avatarUri, avatar);
+        }
+        else
+        {
+            var logoParams = new LinearLayout.LayoutParams(Dp(70), Dp(70))
+            {
+                Gravity = GravityFlags.CenterHorizontal
+            };
+            content.AddView(new MonochromeLogoView(this, MonochromeLogo.Discord, Purple), logoParams);
+        }
+
+        var displayName = string.IsNullOrWhiteSpace(profile?.DisplayName)
+            ? "Discord connecté"
+            : profile.DisplayName;
+        var title = Text(displayName, 20F, White, bold: true, gravity: GravityFlags.Center);
+        title.SetPadding(0, Dp(14), 0, 0);
+        content.AddView(title);
+        if (!string.IsNullOrWhiteSpace(profile?.Username))
+        {
+            var username = Text($"@{profile.Username}", 13F, Muted, gravity: GravityFlags.Center);
+            username.SetPadding(0, Dp(4), 0, 0);
+            content.AddView(username);
+        }
+
+        var state = Text("Compte utilisé pour la Rich Presence", 12F, Muted, gravity: GravityFlags.Center);
+        state.SetPadding(0, Dp(10), 0, Dp(18));
+        content.AddView(state);
+
+        var disconnect = OutlineButton("Se déconnecter");
+        disconnect.Click += (_, _) =>
+        {
+            AndroidDiscordPresenceClient.DisconnectExisting();
+            DiscordSocialSdkInitializer.Reset();
+            AndroidSettings.DisconnectDiscordAccount(this);
+            AndroidSettings.SetLastStatus(this, "Discord déconnecté");
+            dialog.Dismiss();
+            RefreshState();
+        };
+        content.AddView(disconnect, Margin(height: 52));
+
+        var close = Text("Fermer", 13F, Muted, bold: true, gravity: GravityFlags.Center);
+        close.SetPadding(0, Dp(16), 0, Dp(4));
+        close.Clickable = true;
+        close.Click += (_, _) => dialog.Dismiss();
+        content.AddView(close, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, Dp(48)));
+
+        dialog.SetContentView(content);
+        dialog.Window?.SetBackgroundDrawable(new ColorDrawable(global::Android.Graphics.Color.Transparent));
+        dialog.Show();
+        dialog.Window?.SetLayout(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        dialog.Window?.DecorView.SetPadding(Dp(22), 0, Dp(22), 0);
     }
 
     private async Task LoadCoverAsync(System.Uri? uri)
@@ -462,6 +671,23 @@ public sealed class MainActivity : Activity
                 _coverUrl = null;
                 RunOnUiThread(() => _cover?.SetImageResource(Resource.Mipmap.appicon));
             }
+        }
+    }
+
+    private async Task LoadAvatarAsync(System.Uri uri, ImageView target)
+    {
+        try
+        {
+            var bytes = await _images.GetByteArrayAsync(uri);
+            var bitmap = BitmapFactory.DecodeByteArray(bytes, 0, bytes.Length);
+            if (bitmap is not null)
+            {
+                RunOnUiThread(() => target.SetImageBitmap(bitmap));
+            }
+        }
+        catch
+        {
+            // The monochrome application icon remains as a local fallback.
         }
     }
 

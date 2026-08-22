@@ -18,6 +18,16 @@ internal sealed record AndroidPlaybackSnapshot
     public string StatusText { get; init; } = "En attente";
     public NowPlayingTrack? Track { get; init; }
     public bool DiscordConnected { get; init; }
+    public bool DiscordAccountConnected { get; init; }
+    public DiscordAccountProfile? DiscordAccount { get; init; }
+}
+
+internal sealed record DiscordAccountProfile
+{
+    public string UserId { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
+    public string Username { get; init; } = string.Empty;
+    public string AvatarUrl { get; init; } = string.Empty;
 }
 
 internal static class AndroidSettings
@@ -69,6 +79,45 @@ internal static class AndroidSettings
         edit?.PutString("track_cover", track.CoverUrl?.AbsoluteUri ?? string.Empty);
         edit?.PutString("track_url", track.TrackUrl?.AbsoluteUri ?? string.Empty);
         edit?.PutBoolean("discord_connected", discordConnected);
+        if (discordConnected)
+        {
+            edit?.PutBoolean("discord_account_connected", true);
+            edit?.PutBoolean("discord_connection_enabled", true);
+        }
+        edit?.Apply();
+    }
+
+    public static void SaveDiscordAccount(Context context, DiscordAccountProfile profile)
+    {
+        var edit = Preferences(context).Edit();
+        edit?.PutBoolean("discord_account_connected", true);
+        edit?.PutBoolean("discord_connection_enabled", true);
+        edit?.PutString("discord_user_id", profile.UserId);
+        edit?.PutString("discord_display_name", profile.DisplayName);
+        edit?.PutString("discord_username", profile.Username);
+        edit?.PutString("discord_avatar_url", profile.AvatarUrl);
+        edit?.Apply();
+    }
+
+    public static void SetDiscordAccountConnected(Context context, bool connected) =>
+        Preferences(context).Edit()?.PutBoolean("discord_account_connected", connected)?.Apply();
+
+    public static bool IsDiscordConnectionEnabled(Context context) =>
+        Preferences(context).GetBoolean("discord_connection_enabled", true);
+
+    public static void SetDiscordConnectionEnabled(Context context, bool enabled) =>
+        Preferences(context).Edit()?.PutBoolean("discord_connection_enabled", enabled)?.Apply();
+
+    public static void DisconnectDiscordAccount(Context context)
+    {
+        var edit = Preferences(context).Edit();
+        edit?.PutBoolean("discord_connected", false);
+        edit?.PutBoolean("discord_account_connected", false);
+        edit?.PutBoolean("discord_connection_enabled", false);
+        edit?.Remove("discord_user_id");
+        edit?.Remove("discord_display_name");
+        edit?.Remove("discord_username");
+        edit?.Remove("discord_avatar_url");
         edit?.Apply();
     }
 
@@ -117,7 +166,30 @@ internal static class AndroidSettings
         {
             StatusText = GetLastStatus(context),
             Track = track,
-            DiscordConnected = preferences.GetBoolean("discord_connected", false)
+            DiscordConnected = preferences.GetBoolean("discord_connected", false),
+            DiscordAccountConnected = preferences.GetBoolean("discord_account_connected", false),
+            DiscordAccount = ReadDiscordAccount(preferences)
+        };
+    }
+
+    private static DiscordAccountProfile? ReadDiscordAccount(ISharedPreferences preferences)
+    {
+        var userId = preferences.GetString("discord_user_id", string.Empty) ?? string.Empty;
+        var displayName = preferences.GetString("discord_display_name", string.Empty) ?? string.Empty;
+        var username = preferences.GetString("discord_username", string.Empty) ?? string.Empty;
+        var avatarUrl = preferences.GetString("discord_avatar_url", string.Empty) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(userId) && string.IsNullOrWhiteSpace(displayName) &&
+            string.IsNullOrWhiteSpace(username) && string.IsNullOrWhiteSpace(avatarUrl))
+        {
+            return null;
+        }
+
+        return new DiscordAccountProfile
+        {
+            UserId = userId,
+            DisplayName = displayName,
+            Username = username,
+            AvatarUrl = avatarUrl
         };
     }
 

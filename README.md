@@ -25,6 +25,8 @@ Le mapping partagé est volontairement strict :
 - barre pleine largeur `Écouter sur Deezer` sous le morceau : lien direct lorsqu’il est résolu, recherche titre/artiste sur Deezer en secours dans l’interface ;
 - l’application affiche le titre, puis l’artiste, puis l’album sur des lignes distinctes ; la ligne album disparaît lorsqu’elle n’est pas disponible.
 
+Sur Android, les logos Discord et Deezer sont dessinés en monochrome et reprennent automatiquement la couleur du texte voisin. L’accès Discord se trouve à droite de `Paramètres` dans la navigation inférieure : une fois le compte détecté, sa photo ouvre un aperçu du profil et l’action `Se déconnecter`. L’ancienne carte d’état et l’ancien bouton `Connecter Discord` ont été retirés de l’accueil.
+
 La résolution de pochette vérifie l’album fourni par Deezer, accepte ses variantes légitimes (deluxe, remaster, collaborateurs) et relance une recherche élargie lorsque la recherche stricte ne renvoie rien. Elle gère également les résultats où Deezer ne renvoie que l’artiste principal — par exemple `David Guetta` pour un morceau crédité `David Guetta & Bebe Rexha` dans le lecteur.
 
 Discord n’offre que deux lignes de texte personnalisables en plus du nom de l’application. L’artiste et l’album partagent donc la deuxième ligne. Les boutons ne sont visibles que par les autres utilisateurs qui consultent la présence, conformément au comportement Discord.
@@ -60,11 +62,11 @@ Discord Social SDK **1.10 ou plus récent** prend en charge Android 7+ et la pub
 ```
 
 5. Construire l’APK avec `./scripts/build-android.ps1`.
-6. Dans l’application, autoriser l’accès média, ouvrir Discord avec le bouton prévu, puis lancer un morceau dans Deezer. La connexion et la publication sont automatiques ; l’Application ID est déjà intégré.
+6. Dans l’application, autoriser l’accès média, toucher le logo Discord à droite de `Paramètres`, puis lancer un morceau dans Deezer. La connexion et la publication sont automatiques ; l’Application ID est déjà intégré.
 
-Le manifeste déclare explicitement `com.discord`, requis par Android 11+, et le pont natif utilise seulement `SetApplicationId` + `UpdateRichPresence` : pas de serveur, OAuth ou jeton utilisateur.
+Le manifeste déclare explicitement `com.discord`, requis par Android 11+, et le pont natif utilise le compte déjà ouvert dans Discord : pas de serveur, OAuth ou jeton utilisateur.
 
-Le mode arrière-plan Android utilise une notification permanente : elle est nécessaire pour améliorer la continuité de la détection lorsque l’écran est éteint. Android peut malgré tout arrêter une application selon les règles d’économie d’énergie du constructeur.
+Le mode arrière-plan Android utilise une notification permanente : elle est nécessaire pour améliorer la continuité de la détection lorsque l’écran est éteint. L’activité est republiée à intervalle contrôlé et le pont Discord est recréé après une interruption, indépendamment de la connexion à un salon vocal. Android peut malgré tout arrêter une application selon les règles d’économie d’énergie du constructeur.
 
 ## Fonctionnement « H24 »
 

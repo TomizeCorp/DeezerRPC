@@ -31,4 +31,12 @@ internal static class DiscordSocialSdkInitializer
             }
         }
     }
+
+    public static void Reset()
+    {
+        lock (Sync)
+        {
+            IsInitialized = false;
+        }
+    }
 }

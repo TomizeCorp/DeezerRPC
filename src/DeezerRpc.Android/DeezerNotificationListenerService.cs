@@ -19,12 +19,19 @@ namespace DeezerRpc.Android;
 [IntentFilter(["android.service.notification.NotificationListenerService"])]
 public sealed class DeezerNotificationListenerService : NotificationListenerService
 {
+    private static readonly TimeSpan PresenceRefreshInterval = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan FailedPublishRetryInterval = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan ProfileRefreshInterval = TimeSpan.FromMinutes(10);
     private readonly CancellationTokenSource _stop = new();
     private readonly DiscordActivityBuilder _activityBuilder = new();
     private readonly DeezerCatalogClient _catalog = new();
     private readonly AndroidDiscordPresenceClient _discord = new();
     private Task? _monitorTask;
     private string? _lastFingerprint;
+    private DateTimeOffset _lastPublishAttempt = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastPublishedAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastProfileRefresh = DateTimeOffset.MinValue;
+    private bool _lastPublishFailed;
     private bool _foregroundActive;
 
     public override void OnListenerConnected()
@@ -83,8 +90,11 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             if (_lastFingerprint is not null)
             {
                 _discord.TryClear();
-                _lastFingerprint = null;
             }
+
+            _lastFingerprint = null;
+            _lastPublishedAt = DateTimeOffset.MinValue;
+            _lastPublishFailed = false;
 
             AndroidSettings.ClearPlayback(this, "Aucune lecture Deezer détectée");
             return;
@@ -100,6 +110,8 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
 
             _discord.TryClear();
             _lastFingerprint = pausedFingerprint;
+            _lastPublishedAt = DateTimeOffset.MinValue;
+            _lastPublishFailed = false;
             track = await _catalog.EnrichAsync(track, requireCatalogMatch: false, cancellationToken) ?? track;
             AndroidSettings.SavePlayback(this, track, "En pause — activité Discord retirée", false);
             return;
@@ -110,6 +122,8 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
         {
             _discord.TryClear();
             _lastFingerprint = null;
+            _lastPublishedAt = DateTimeOffset.MinValue;
+            _lastPublishFailed = false;
             AndroidSettings.SavePlayback(this, track, "Rich Presence désactivée", false);
             return;
         }
@@ -122,12 +136,20 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             settings.ShowAlbum,
             settings.ShowProgress,
             settings.ShowDeezerButton);
-        if (fingerprint == _lastFingerprint)
+        var now = DateTimeOffset.UtcNow;
+        var trackChanged = fingerprint != _lastFingerprint;
+        var refreshDue = now - _lastPublishedAt >= PresenceRefreshInterval;
+        if (!trackChanged && !refreshDue)
+        {
+            return;
+        }
+        if (_lastPublishFailed && now - _lastPublishAttempt < FailedPublishRetryInterval)
         {
             return;
         }
 
-        var activity = _activityBuilder.Build(track, DateTimeOffset.UtcNow, new PresenceOptions
+        _lastPublishAttempt = now;
+        var activity = _activityBuilder.Build(track, now, new PresenceOptions
         {
             ShowAlbum = settings.ShowAlbum,
             ShowProgress = settings.ShowProgress,
@@ -136,11 +158,38 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
         if (_discord.TrySetActivity(AppIdentity.DiscordApplicationId, activity, out var error))
         {
             _lastFingerprint = fingerprint;
+            _lastPublishedAt = now;
+            _lastPublishFailed = false;
             AndroidSettings.SavePlayback(this, track, $"Publié — {track.Title}", true);
+            RefreshDiscordAccount(now);
         }
         else
         {
+            _lastPublishFailed = true;
             AndroidSettings.SavePlayback(this, track, error, false);
+        }
+    }
+
+    private void RefreshDiscordAccount(DateTimeOffset now)
+    {
+        var existing = AndroidSettings.GetPlayback(this).DiscordAccount;
+        if (existing is not null && now - _lastProfileRefresh < ProfileRefreshInterval)
+        {
+            return;
+        }
+        if (now - _lastProfileRefresh < FailedPublishRetryInterval)
+        {
+            return;
+        }
+
+        _lastProfileRefresh = now;
+        if (_discord.TryGetConnectedUser(AppIdentity.DiscordApplicationId, out var profile) && profile is not null)
+        {
+            AndroidSettings.SaveDiscordAccount(this, profile);
+        }
+        else
+        {
+            AndroidSettings.SetDiscordAccountConnected(this, true);
         }
     }
 
