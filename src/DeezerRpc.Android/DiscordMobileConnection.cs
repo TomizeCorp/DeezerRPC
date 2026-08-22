@@ -21,37 +21,24 @@ internal static class DiscordMobileConnection
         await Gate.WaitAsync(cancellationToken);
         try
         {
-            var beginError = string.Empty;
-            var beginSource = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            activity.RunOnUiThread(() =>
+            var browserAuthorization = await DiscordOAuthBrowserFlow.AuthorizeAsync(
+                activity,
+                AppIdentity.DiscordApplicationId,
+                cancellationToken);
+            if (!browserAuthorization.Successful)
             {
-                try
-                {
-                    var started = AndroidDiscordPresenceClient.TryBeginAuthorization(
-                        AppIdentity.DiscordApplicationId,
-                        out var error);
-                    beginError = error;
-                    beginSource.TrySetResult(started);
-                }
-                catch (Exception exception)
-                {
-                    beginError = $"Impossible d’ouvrir Discord : {exception.Message}";
-                    beginSource.TrySetResult(false);
-                }
-            });
-
-            if (!await beginSource.Task.WaitAsync(cancellationToken))
-            {
-                return new DiscordConnectionOutcome(false, null, beginError);
+                return new DiscordConnectionOutcome(false, null, browserAuthorization.Error);
             }
 
             DiscordOAuthTokens? tokens = null;
             DiscordAccountProfile? profile = null;
             var error = string.Empty;
             var authorized = await Task.Run(() =>
-                AndroidDiscordPresenceClient.TryCompleteAuthorization(
+                AndroidDiscordPresenceClient.TryExchangeAuthorizationCode(
                     AppIdentity.DiscordApplicationId,
+                    browserAuthorization.Code,
+                    browserAuthorization.CodeVerifier,
+                    browserAuthorization.RedirectUri,
                     out tokens,
                     out profile,
                     out error), cancellationToken);

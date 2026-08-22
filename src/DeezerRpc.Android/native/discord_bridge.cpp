@@ -126,6 +126,73 @@ int update_token_and_connect(
     }
     return 4;
 }
+
+int exchange_authorization_code(
+    const std::shared_ptr<discordpp::Client>& target,
+    std::uint64_t application_id,
+    const std::string& code,
+    const std::string& code_verifier,
+    const std::string& redirect_uri,
+    char* access_token,
+    int access_token_capacity,
+    char* refresh_token,
+    int refresh_token_capacity,
+    std::int64_t* expires_in_seconds) {
+    if (!target || code.empty() || code_verifier.empty() || redirect_uri.empty()) {
+        return 1;
+    }
+
+    struct TokenExchangeResult {
+        std::mutex mutex;
+        std::condition_variable ready;
+        bool completed = false;
+        bool successful = false;
+        std::string access_token;
+        std::string refresh_token;
+        std::int64_t expires_in = 0;
+    };
+    auto exchange = std::make_shared<TokenExchangeResult>();
+    target->GetToken(
+        application_id,
+        code,
+        code_verifier,
+        redirect_uri,
+        [exchange](
+            const discordpp::ClientResult& result,
+            std::string new_access_token,
+            std::string new_refresh_token,
+            discordpp::AuthorizationTokenType,
+            std::int32_t expires_in,
+            std::string) {
+            {
+                std::lock_guard result_lock(exchange->mutex);
+                exchange->successful = result.Successful();
+                exchange->access_token = std::move(new_access_token);
+                exchange->refresh_token = std::move(new_refresh_token);
+                exchange->expires_in = expires_in;
+                exchange->completed = true;
+            }
+            exchange->ready.notify_one();
+        });
+
+    std::unique_lock exchange_lock(exchange->mutex);
+    if (!exchange->ready.wait_for(
+            exchange_lock,
+            std::chrono::seconds(30),
+            [&exchange] { return exchange->completed; })) {
+        return 5;
+    }
+    if (!exchange->successful || exchange->access_token.empty() || exchange->refresh_token.empty()) {
+        return 6;
+    }
+
+    copy_to_buffer(exchange->access_token, access_token, access_token_capacity);
+    copy_to_buffer(exchange->refresh_token, refresh_token, refresh_token_capacity);
+    if (expires_in_seconds != nullptr) {
+        *expires_in_seconds = exchange->expires_in;
+    }
+    return 0;
+}
 }
 
 extern "C" __attribute__((visibility("default"))) int drpc_initialize(const char* application_id) {
@@ -259,56 +326,52 @@ extern "C" __attribute__((visibility("default"))) int drpc_finish_authorize(
         }
     }
 
-    struct TokenExchangeResult {
-        std::mutex mutex;
-        std::condition_variable ready;
-        bool completed = false;
-        bool successful = false;
-        std::string access_token;
-        std::string refresh_token;
-        std::int64_t expires_in = 0;
-    };
-    auto exchange = std::make_shared<TokenExchangeResult>();
-    target->GetToken(
+    return exchange_authorization_code(
+        target,
         parsed_id,
         code,
         code_verifier,
         redirect_uri,
-        [exchange](
-            const discordpp::ClientResult& result,
-            std::string new_access_token,
-            std::string new_refresh_token,
-            discordpp::AuthorizationTokenType,
-            std::int32_t expires_in,
-            std::string) {
-            {
-                std::lock_guard result_lock(exchange->mutex);
-                exchange->successful = result.Successful();
-                exchange->access_token = std::move(new_access_token);
-                exchange->refresh_token = std::move(new_refresh_token);
-                exchange->expires_in = expires_in;
-                exchange->completed = true;
-            }
-            exchange->ready.notify_one();
-        });
+        access_token,
+        access_token_capacity,
+        refresh_token,
+        refresh_token_capacity,
+        expires_in_seconds);
+}
 
-    std::unique_lock exchange_lock(exchange->mutex);
-    if (!exchange->ready.wait_for(
-            exchange_lock,
-            std::chrono::seconds(30),
-            [&exchange] { return exchange->completed; })) {
-        return 5;
+extern "C" __attribute__((visibility("default"))) int drpc_exchange_authorization_code(
+    const char* application_id,
+    const char* code,
+    const char* code_verifier,
+    const char* redirect_uri,
+    char* access_token,
+    int access_token_capacity,
+    char* refresh_token,
+    int refresh_token_capacity,
+    std::int64_t* expires_in_seconds) {
+    std::uint64_t parsed_id = 0;
+    if (!parse_application_id(application_id, parsed_id) ||
+        code == nullptr || *code == '\0' ||
+        code_verifier == nullptr || *code_verifier == '\0' ||
+        redirect_uri == nullptr || *redirect_uri == '\0') {
+        return 1;
     }
-    if (!exchange->successful || exchange->access_token.empty() || exchange->refresh_token.empty()) {
-        return 6;
+    if (drpc_initialize(application_id) != 0) {
+        return 2;
     }
 
-    copy_to_buffer(exchange->access_token, access_token, access_token_capacity);
-    copy_to_buffer(exchange->refresh_token, refresh_token, refresh_token_capacity);
-    if (expires_in_seconds != nullptr) {
-        *expires_in_seconds = exchange->expires_in;
-    }
-    return 0;
+    auto target = get_client();
+    return exchange_authorization_code(
+        target,
+        parsed_id,
+        safe(code),
+        safe(code_verifier),
+        safe(redirect_uri),
+        access_token,
+        access_token_capacity,
+        refresh_token,
+        refresh_token_capacity,
+        expires_in_seconds);
 }
 
 extern "C" __attribute__((visibility("default"))) int drpc_authorize(

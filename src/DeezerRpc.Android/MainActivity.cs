@@ -73,6 +73,10 @@ public sealed class MainActivity : Activity
     protected override void OnResume()
     {
         base.OnResume();
+        if (DiscordOAuthBrowserFlow.HasPendingAuthorization)
+        {
+            DiscordOAuthBrowserFlow.Cancel("Connexion Discord annulée");
+        }
         if (AndroidSettings.IsDiscordConnectionEnabled(this) &&
             DiscordSocialSdkInitializer.IsInitialized &&
             AndroidSettings.GetDiscordOAuthTokens(this) is not null)

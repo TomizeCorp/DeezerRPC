@@ -196,6 +196,71 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
         }
     }
 
+    public static bool TryExchangeAuthorizationCode(
+        string applicationId,
+        string code,
+        string codeVerifier,
+        string redirectUri,
+        out DiscordOAuthTokens? tokens,
+        out DiscordAccountProfile? profile,
+        out string error)
+    {
+        tokens = null;
+        profile = null;
+        try
+        {
+            var accessToken = new StringBuilder(4096);
+            var refreshToken = new StringBuilder(4096);
+            var exchangeResult = Native.ExchangeAuthorizationCode(
+                applicationId,
+                code,
+                codeVerifier,
+                redirectUri,
+                accessToken,
+                accessToken.Capacity,
+                refreshToken,
+                refreshToken.Capacity,
+                out var expiresInSeconds);
+            if (exchangeResult != 0)
+            {
+                error = exchangeResult switch
+                {
+                    5 => "Discord n’a pas répondu à temps",
+                    6 => "Échange OAuth refusé — vérifie le client public et la redirection Discord",
+                    _ => "Connexion OAuth Discord impossible"
+                };
+                return false;
+            }
+
+            tokens = new DiscordOAuthTokens
+            {
+                AccessToken = accessToken.ToString(),
+                RefreshToken = refreshToken.ToString(),
+                ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresInSeconds))
+            };
+
+            if (Native.ConnectAuthenticated(applicationId, tokens.AccessToken) != 0)
+            {
+                error = "Compte lié — connexion Discord en attente du réseau";
+                return true;
+            }
+
+            TryReadConnectedUser(applicationId, out profile);
+            error = string.Empty;
+            return true;
+        }
+        catch (DllNotFoundException)
+        {
+            error = "SDK Discord Social 1.10+ absent de cette compilation";
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            error = "Pont natif Discord incompatible";
+            return false;
+        }
+    }
+
     public static bool TryRestoreAccount(
         string applicationId,
         DiscordOAuthTokens tokens,
@@ -429,6 +494,18 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
         [DllImport(LibraryName, EntryPoint = "drpc_finish_authorize", CallingConvention = CallingConvention.Cdecl)]
         public static extern int FinishAuthorize(
             [MarshalAs(UnmanagedType.LPUTF8Str)] string applicationId,
+            [Out] StringBuilder accessToken,
+            int accessTokenCapacity,
+            [Out] StringBuilder refreshToken,
+            int refreshTokenCapacity,
+            out long expiresInSeconds);
+
+        [DllImport(LibraryName, EntryPoint = "drpc_exchange_authorization_code", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ExchangeAuthorizationCode(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string applicationId,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string code,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string codeVerifier,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string redirectUri,
             [Out] StringBuilder accessToken,
             int accessTokenCapacity,
             [Out] StringBuilder refreshToken,

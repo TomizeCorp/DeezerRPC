@@ -66,7 +66,7 @@ Discord Social SDK **1.10 ou plus récent** prend en charge Android 7+. Contrair
 ```
 
 6. Construire l’APK avec `./scripts/build-android.ps1`.
-7. Dans l’application, autoriser l’accès média, toucher le logo Discord à droite de `Paramètres`, puis accepter la liaison affichée par Discord. Cette autorisation n’est demandée qu’à la première connexion.
+7. Dans l’application, autoriser l’accès média, toucher le logo Discord à droite de `Paramètres`, puis accepter la liaison sur la page OAuth officielle ouverte dans le navigateur. Cette autorisation n’est demandée qu’à la première connexion.
 
 Le manifeste déclare la redirection mobile officielle et `com.discord`, requis par Android 11+. Les jetons OAuth sont conservés uniquement dans le stockage privé non sauvegardable de l’application, renouvelés avant expiration et supprimés lors de `Se déconnecter`. Aucun serveur n’est nécessaire.
 

@@ -19,15 +19,5 @@
       android:allowBackup="false"
       android:label="DeezerRPC"
       android:usesCleartextTraffic="false">
-    <activity
-        android:name="com.discord.socialsdk.AuthenticationActivity"
-        android:exported="true">
-      <intent-filter>
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="discord-1540336569532031116" />
-      </intent-filter>
-    </activity>
   </application>
 </manifest>
