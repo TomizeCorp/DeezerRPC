@@ -1,3 +1,4 @@
+using Android.App;
 using Android.Content;
 using DeezerRpc.Core;
 
@@ -14,17 +15,42 @@ internal static class DiscordMobileConnection
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
     public static async Task<DiscordConnectionOutcome> AuthorizeAsync(
-        Context context,
+        Activity activity,
         CancellationToken cancellationToken = default)
     {
         await Gate.WaitAsync(cancellationToken);
         try
         {
+            var beginError = string.Empty;
+            var beginSource = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            activity.RunOnUiThread(() =>
+            {
+                try
+                {
+                    var started = AndroidDiscordPresenceClient.TryBeginAuthorization(
+                        AppIdentity.DiscordApplicationId,
+                        out var error);
+                    beginError = error;
+                    beginSource.TrySetResult(started);
+                }
+                catch (Exception exception)
+                {
+                    beginError = $"Impossible d’ouvrir Discord : {exception.Message}";
+                    beginSource.TrySetResult(false);
+                }
+            });
+
+            if (!await beginSource.Task.WaitAsync(cancellationToken))
+            {
+                return new DiscordConnectionOutcome(false, null, beginError);
+            }
+
             DiscordOAuthTokens? tokens = null;
             DiscordAccountProfile? profile = null;
             var error = string.Empty;
             var authorized = await Task.Run(() =>
-                AndroidDiscordPresenceClient.TryAuthorizeAccount(
+                AndroidDiscordPresenceClient.TryCompleteAuthorization(
                     AppIdentity.DiscordApplicationId,
                     out tokens,
                     out profile,
@@ -32,11 +58,11 @@ internal static class DiscordMobileConnection
 
             if (tokens is not null)
             {
-                AndroidSettings.SaveDiscordOAuthTokens(context, tokens);
+                AndroidSettings.SaveDiscordOAuthTokens(activity, tokens);
             }
             if (profile is not null)
             {
-                AndroidSettings.SaveDiscordAccount(context, profile);
+                AndroidSettings.SaveDiscordAccount(activity, profile);
             }
 
             return new DiscordConnectionOutcome(authorized && profile is not null, profile, error);

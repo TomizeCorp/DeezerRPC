@@ -518,6 +518,7 @@ public sealed class MainActivity : Activity
         }
 
         AndroidSettings.SetLastStatus(this, "Ouverture de la connexion sécurisée Discord…");
+        Toast.MakeText(this, "Ouverture de Discord…", ToastLength.Short)?.Show();
         RefreshState();
         if (AndroidSettings.GetDiscordOAuthTokens(this) is not null)
         {
@@ -597,6 +598,8 @@ public sealed class MainActivity : Activity
             else
             {
                 AndroidSettings.SetLastStatus(this, result.Error);
+                RunOnUiThread(() =>
+                    Toast.MakeText(this, result.Error, ToastLength.Long)?.Show());
             }
         }
         finally

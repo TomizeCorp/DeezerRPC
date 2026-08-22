@@ -21,6 +21,18 @@ std::uint64_t current_application_id = 0;
 std::atomic<bool> callbacks_running{false};
 std::thread callbacks_thread;
 
+struct AuthorizationResult {
+    std::mutex mutex;
+    std::condition_variable ready;
+    bool completed = false;
+    bool successful = false;
+    std::string code;
+    std::string redirect_uri;
+    std::string code_verifier;
+};
+
+std::shared_ptr<AuthorizationResult> pending_authorization;
+
 std::string safe(const char* value) {
     return value == nullptr ? std::string{} : std::string{value};
 }
@@ -141,13 +153,8 @@ extern "C" __attribute__((visibility("default"))) int drpc_initialize(const char
     return 0;
 }
 
-extern "C" __attribute__((visibility("default"))) int drpc_authorize(
-    const char* application_id,
-    char* access_token,
-    int access_token_capacity,
-    char* refresh_token,
-    int refresh_token_capacity,
-    std::int64_t* expires_in_seconds) {
+extern "C" __attribute__((visibility("default"))) int drpc_begin_authorize(
+    const char* application_id) {
     std::uint64_t parsed_id = 0;
     if (!parse_application_id(application_id, parsed_id)) {
         return 1;
@@ -156,7 +163,6 @@ extern "C" __attribute__((visibility("default"))) int drpc_authorize(
         return 2;
     }
 
-    std::lock_guard auth_lock(auth_mutex);
     auto target = get_client();
     if (!target) {
         return 2;
@@ -168,15 +174,15 @@ extern "C" __attribute__((visibility("default"))) int drpc_authorize(
     args.SetScopes(discordpp::Client::GetDefaultPresenceScopes());
     args.SetCodeChallenge(verifier.Challenge());
 
-    struct AuthorizationResult {
-        std::mutex mutex;
-        std::condition_variable ready;
-        bool completed = false;
-        bool successful = false;
-        std::string code;
-        std::string redirect_uri;
-    };
     auto authorization = std::make_shared<AuthorizationResult>();
+    authorization->code_verifier = verifier.Verifier();
+    {
+        std::lock_guard auth_lock(auth_mutex);
+        pending_authorization = authorization;
+    }
+
+    // On Android Authorize ultimately calls Activity.startActivity. This entry point is
+    // deliberately non-blocking so managed code can invoke it from the UI thread.
     target->Authorize(
         std::move(args),
         [authorization](
@@ -192,6 +198,34 @@ extern "C" __attribute__((visibility("default"))) int drpc_authorize(
             }
             authorization->ready.notify_one();
         });
+    return 0;
+}
+
+extern "C" __attribute__((visibility("default"))) int drpc_finish_authorize(
+    const char* application_id,
+    char* access_token,
+    int access_token_capacity,
+    char* refresh_token,
+    int refresh_token_capacity,
+    std::int64_t* expires_in_seconds) {
+    std::uint64_t parsed_id = 0;
+    if (!parse_application_id(application_id, parsed_id)) {
+        return 1;
+    }
+
+    auto target = get_client();
+    if (!target) {
+        return 2;
+    }
+
+    std::shared_ptr<AuthorizationResult> authorization;
+    {
+        std::lock_guard auth_lock(auth_mutex);
+        authorization = pending_authorization;
+    }
+    if (!authorization) {
+        return 2;
+    }
 
     std::unique_lock authorization_lock(authorization->mutex);
     if (!authorization->ready.wait_for(
@@ -199,15 +233,31 @@ extern "C" __attribute__((visibility("default"))) int drpc_authorize(
             std::chrono::minutes(5),
             [&authorization] { return authorization->completed; })) {
         target->AbortAuthorize();
+        authorization_lock.unlock();
+        std::lock_guard auth_lock(auth_mutex);
+        if (pending_authorization == authorization) {
+            pending_authorization.reset();
+        }
         return 3;
     }
     if (!authorization->successful || authorization->code.empty()) {
+        authorization_lock.unlock();
+        std::lock_guard auth_lock(auth_mutex);
+        if (pending_authorization == authorization) {
+            pending_authorization.reset();
+        }
         return 4;
     }
     const auto code = authorization->code;
     const auto redirect_uri = authorization->redirect_uri;
-    const auto code_verifier = verifier.Verifier();
+    const auto code_verifier = authorization->code_verifier;
     authorization_lock.unlock();
+    {
+        std::lock_guard auth_lock(auth_mutex);
+        if (pending_authorization == authorization) {
+            pending_authorization.reset();
+        }
+    }
 
     struct TokenExchangeResult {
         std::mutex mutex;
@@ -259,6 +309,26 @@ extern "C" __attribute__((visibility("default"))) int drpc_authorize(
         *expires_in_seconds = exchange->expires_in;
     }
     return 0;
+}
+
+extern "C" __attribute__((visibility("default"))) int drpc_authorize(
+    const char* application_id,
+    char* access_token,
+    int access_token_capacity,
+    char* refresh_token,
+    int refresh_token_capacity,
+    std::int64_t* expires_in_seconds) {
+    const auto begin_result = drpc_begin_authorize(application_id);
+    if (begin_result != 0) {
+        return begin_result;
+    }
+    return drpc_finish_authorize(
+        application_id,
+        access_token,
+        access_token_capacity,
+        refresh_token,
+        refresh_token_capacity,
+        expires_in_seconds);
 }
 
 extern "C" __attribute__((visibility("default"))) int drpc_refresh_token(

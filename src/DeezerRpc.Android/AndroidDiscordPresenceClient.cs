@@ -104,7 +104,38 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
         }
     }
 
-    public static bool TryAuthorizeAccount(
+    public static bool TryBeginAuthorization(string applicationId, out string error)
+    {
+        try
+        {
+            if (Native.Initialize(applicationId) != 0)
+            {
+                error = "Initialisation Discord Android impossible";
+                return false;
+            }
+
+            var result = Native.BeginAuthorize(applicationId);
+            error = result switch
+            {
+                0 => string.Empty,
+                1 => "Identifiant d’application Discord invalide",
+                _ => "Impossible d’ouvrir la connexion Discord"
+            };
+            return result == 0;
+        }
+        catch (DllNotFoundException)
+        {
+            error = "SDK Discord Social 1.10+ absent de cette compilation";
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            error = "Pont natif Discord incompatible";
+            return false;
+        }
+    }
+
+    public static bool TryCompleteAuthorization(
         string applicationId,
         out DiscordOAuthTokens? tokens,
         out DiscordAccountProfile? profile,
@@ -114,15 +145,9 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
         profile = null;
         try
         {
-            if (Native.Initialize(applicationId) != 0)
-            {
-                error = "Initialisation Discord Android impossible";
-                return false;
-            }
-
             var accessToken = new StringBuilder(4096);
             var refreshToken = new StringBuilder(4096);
-            var authorizeResult = Native.Authorize(
+            var authorizeResult = Native.FinishAuthorize(
                 applicationId,
                 accessToken,
                 accessToken.Capacity,
@@ -397,8 +422,12 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
             [MarshalAs(UnmanagedType.LPUTF8Str)] string buttonLabel,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string buttonUrl);
 
-        [DllImport(LibraryName, EntryPoint = "drpc_authorize", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int Authorize(
+        [DllImport(LibraryName, EntryPoint = "drpc_begin_authorize", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int BeginAuthorize(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string applicationId);
+
+        [DllImport(LibraryName, EntryPoint = "drpc_finish_authorize", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int FinishAuthorize(
             [MarshalAs(UnmanagedType.LPUTF8Str)] string applicationId,
             [Out] StringBuilder accessToken,
             int accessTokenCapacity,
