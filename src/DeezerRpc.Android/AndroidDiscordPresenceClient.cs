@@ -42,13 +42,16 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
             var button = activity.Buttons?.FirstOrDefault();
             var result = Native.SetActivity(
                 activity.Details,
+                activity.DetailsUrl ?? string.Empty,
                 activity.State,
                 timestamps?.Start ?? 0,
                 timestamps?.End ?? 0,
                 assets?.LargeImage ?? string.Empty,
                 assets?.LargeText ?? string.Empty,
+                assets?.LargeUrl ?? string.Empty,
                 assets?.SmallImage ?? string.Empty,
                 assets?.SmallText ?? string.Empty,
+                assets?.SmallUrl ?? string.Empty,
                 button?.Label ?? string.Empty,
                 button?.Url ?? string.Empty);
             if (result != 0)
@@ -239,13 +242,16 @@ internal sealed class AndroidDiscordPresenceClient : IDisposable
         [DllImport(LibraryName, EntryPoint = "drpc_set_activity", CallingConvention = CallingConvention.Cdecl)]
         public static extern int SetActivity(
             [MarshalAs(UnmanagedType.LPUTF8Str)] string details,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string detailsUrl,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string state,
             long startTimestamp,
             long endTimestamp,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string largeImage,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string largeText,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string largeUrl,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string smallImage,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string smallText,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string smallUrl,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string buttonLabel,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string buttonUrl);
 

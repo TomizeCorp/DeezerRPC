@@ -74,13 +74,16 @@ extern "C" __attribute__((visibility("default"))) int drpc_initialize(const char
 
 extern "C" __attribute__((visibility("default"))) int drpc_set_activity(
     const char* details,
+    const char* details_url,
     const char* state,
     std::int64_t start_timestamp,
     std::int64_t end_timestamp,
     const char* large_image,
     const char* large_text,
+    const char* large_url,
     const char* small_image,
     const char* small_text,
+    const char* small_url,
     const char* button_label,
     const char* button_url) {
     std::lock_guard lock(client_mutex);
@@ -92,6 +95,9 @@ extern "C" __attribute__((visibility("default"))) int drpc_set_activity(
     activity.SetName("Deezer");
     activity.SetType(discordpp::ActivityTypes::Listening);
     activity.SetDetails(safe(details));
+    if (details_url != nullptr && *details_url != '\0') {
+        activity.SetDetailsUrl(safe(details_url));
+    }
     activity.SetState(safe(state));
 
     if (start_timestamp > 0 && end_timestamp > start_timestamp) {
@@ -107,10 +113,16 @@ extern "C" __attribute__((visibility("default"))) int drpc_set_activity(
         if (large_image != nullptr && *large_image != '\0') {
             assets.SetLargeImage(safe(large_image));
             assets.SetLargeText(safe(large_text));
+            if (large_url != nullptr && *large_url != '\0') {
+                assets.SetLargeUrl(safe(large_url));
+            }
         }
         if (small_image != nullptr && *small_image != '\0') {
             assets.SetSmallImage(safe(small_image));
             assets.SetSmallText(safe(small_text));
+            if (small_url != nullptr && *small_url != '\0') {
+                assets.SetSmallUrl(safe(small_url));
+            }
         }
         activity.SetAssets(assets);
     }

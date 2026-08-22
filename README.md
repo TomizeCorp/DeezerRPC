@@ -23,6 +23,7 @@ Le mapping partagé est volontairement strict :
 - `assets.small_image` : logo Deezer monochrome blanc sur fond transparent, superposé par Discord à la pochette ;
 - `timestamps.start/end` : progression rendue nativement par Discord pendant la lecture ;
 - barre pleine largeur `Écouter sur Deezer` sous le morceau : lien direct lorsqu’il est résolu, recherche titre/artiste sur Deezer en secours dans l’interface ;
+- le titre, la pochette et le petit logo sont également cliquables dans Discord et ouvrent le morceau — ou sa recherche Deezer de secours ;
 - l’application affiche le titre, puis l’artiste, puis l’album sur des lignes distinctes ; la ligne album disparaît lorsqu’elle n’est pas disponible.
 
 Sur Android, les logos Discord et Deezer sont dessinés en monochrome et reprennent automatiquement la couleur du texte voisin. L’accès Discord se trouve à droite de `Paramètres` dans la navigation inférieure : une fois le compte détecté, sa photo ouvre un aperçu du profil et l’action `Se déconnecter`. L’ancienne carte d’état et l’ancien bouton `Connecter Discord` ont été retirés de l’accueil.
@@ -39,7 +40,9 @@ Discord n’offre que deux lignes de texte personnalisables en plus du nom de l�
 
 L’Application ID `1540336569532031116` est intégré à la compilation : aucun identifiant ou réglage Discord n’est demandé à l’utilisateur.
 
-Sur Windows, « connecté » signifie que Deezer Presence utilise automatiquement le compte déjà authentifié dans Discord Desktop. L’application ne demande et ne conserve donc jamais le mot de passe, le secret client ou un token utilisateur Discord.
+Sur Windows, « connecté » signifie que Deezer Presence utilise automatiquement le compte déjà authentifié dans Discord Desktop. La connexion RPC est désormais établie dès le démarrage, même sans musique en cours, puis retentée automatiquement toutes les trois secondes si Discord vient seulement de s’ouvrir. L’application ne demande et ne conserve donc jamais le mot de passe, le secret client ou un token utilisateur Discord.
+
+Le logo Discord à droite de `Paramètres` indique cette connexion : après détection, il affiche la photo du compte. Un clic ouvre le nom du profil et l’action `Se déconnecter de Deezer Presence`; lorsqu’il est déconnecté, un clic réactive la connexion locale et ouvre Discord Desktop si nécessaire.
 
 L’application peut s’enregistrer dans `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` pour démarrer avec Windows. Elle interroge la session média locale une fois par seconde, puis laisse Discord faire avancer le temps sans republier l’activité en boucle. Lors d’une pause, l’activité Discord est entièrement supprimée — logo compris — et elle revient automatiquement à la reprise. Les réglages permettent aussi de masquer l’album, la progression ou le bouton.
 

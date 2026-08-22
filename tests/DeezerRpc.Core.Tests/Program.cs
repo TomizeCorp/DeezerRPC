@@ -29,6 +29,9 @@ Assert(activity.Assets?.SmallImage == DiscordActivityBuilder.DeezerMonochromeLog
 Assert(activity.Assets?.SmallText == "Deezer", "Le logo monochrome doit identifier Deezer.");
 Assert(json.Contains("small_image", StringComparison.Ordinal), "small_image doit être transmis à Discord.");
 Assert(activity.Buttons is [{ Label: "Écouter sur Deezer" }], "Le bouton Deezer doit être présent.");
+Assert(activity.DetailsUrl == playing.TrackUrl.AbsoluteUri, "Le titre Discord doit ouvrir directement le morceau.");
+Assert(activity.Assets?.LargeUrl == playing.TrackUrl.AbsoluteUri, "La pochette Discord doit ouvrir directement le morceau.");
+Assert(activity.Assets?.SmallUrl == playing.TrackUrl.AbsoluteUri, "Le logo Discord doit ouvrir directement le morceau.");
 
 AssertThrows<InvalidOperationException>(
     () => builder.Build(playing with { Status = PlaybackStatus.Paused }, now),
@@ -43,6 +46,7 @@ var minimal = builder.Build(playing, now, new PresenceOptions
 Assert(minimal.State == "Alan Walker", "L’album ne doit jamais être répété à côté de l’artiste.");
 Assert(minimal.Timestamps is null, "La progression doit pouvoir être masquée.");
 Assert(minimal.Buttons is null, "Le bouton Deezer doit pouvoir être masqué.");
+Assert(minimal.DetailsUrl == playing.TrackUrl.AbsoluteUri && minimal.Assets?.LargeUrl == playing.TrackUrl.AbsoluteUri, "Le morceau doit rester cliquable même si le bouton est masqué.");
 Assert(minimal.Assets?.LargeImage == playing.CoverUrl.AbsoluteUri, "La pochette doit rester la grande image dans tous les modes.");
 Assert(minimal.Assets?.SmallImage == DiscordActivityBuilder.DeezerMonochromeLogoUrl, "Le logo Deezer doit rester présent dans tous les modes.");
 
@@ -62,7 +66,7 @@ var withoutRemoteAssets = builder.Build(
     now);
 Assert(withoutRemoteAssets.Assets?.LargeImage is null, "Une pochette locale ne doit pas être envoyée à Discord.");
 Assert(withoutRemoteAssets.Assets?.SmallImage == DiscordActivityBuilder.DeezerMonochromeLogoUrl, "Le logo Deezer public doit rester disponible sans pochette.");
-Assert(withoutRemoteAssets.Buttons is null, "Un lien local ne doit pas devenir un bouton public.");
+Assert(withoutRemoteAssets.Buttons is [{ Url: var fallbackUrl }] && fallbackUrl.Contains("deezer.com/search/", StringComparison.Ordinal), "Une recherche Deezer publique doit servir de bouton de secours.");
 
 Assert(playing.ProjectPosition(now.AddSeconds(10)) == TimeSpan.FromSeconds(112), "La position doit progresser pendant la lecture.");
 Assert(

@@ -21,6 +21,8 @@ public sealed class DiscordActivityBuilder
 
         var album = track.Album.Trim();
         var state = track.Artist.Trim();
+        var listenUri = DeezerLinks.GetListenUri(track);
+        var listenUrl = IsPublicHttps(listenUri) ? listenUri!.AbsoluteUri : null;
 
         DiscordTimestamps? timestamps = null;
         if (options.ShowProgress && track.Duration > TimeSpan.Zero)
@@ -50,19 +52,21 @@ public sealed class DiscordActivityBuilder
         {
             LargeImage = largeImage,
             LargeText = largeText,
+            LargeUrl = listenUrl,
             SmallImage = DeezerMonochromeLogoUrl,
-            SmallText = "Deezer"
+            SmallText = "Deezer",
+            SmallUrl = listenUrl
         };
 
         IReadOnlyList<DiscordButton>? buttons = null;
-        if (options.ShowDeezerButton && IsPublicHttps(track.TrackUrl))
+        if (options.ShowDeezerButton && listenUrl is not null)
         {
             buttons =
             [
                 new DiscordButton
                 {
                     Label = "Écouter sur Deezer",
-                    Url = track.TrackUrl!.AbsoluteUri
+                    Url = listenUrl
                 }
             ];
         }
@@ -70,6 +74,7 @@ public sealed class DiscordActivityBuilder
         return new DiscordActivity
         {
             Details = Trim(track.Title.Trim(), TextLimit),
+            DetailsUrl = listenUrl,
             State = Trim(state, TextLimit),
             Timestamps = timestamps,
             Assets = assets,

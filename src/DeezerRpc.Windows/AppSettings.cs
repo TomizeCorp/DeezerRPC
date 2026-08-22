@@ -3,6 +3,7 @@ namespace DeezerRpc.Windows;
 internal sealed record AppSettings
 {
     public bool RichPresenceEnabled { get; init; } = true;
+    public bool DiscordConnectionEnabled { get; init; } = true;
     public bool StartWithWindows { get; init; }
     public bool EnableBrowserDetection { get; init; }
     public bool ShowAlbum { get; init; } = true;

@@ -38,8 +38,11 @@ internal sealed class DashboardForm : Form
     private Label _discordSubstate = null!;
     private Label _deezerState = null!;
     private Label _deezerSubstate = null!;
+    private Button _discordAccountButton = null!;
     private string? _loadedCoverUrl;
     private Image? _downloadedCover;
+    private string? _loadedDiscordAvatarUrl;
+    private Image? _downloadedDiscordAvatar;
     private bool _forceClose;
     private bool _updatingToggle;
 
@@ -113,6 +116,7 @@ internal sealed class DashboardForm : Form
             _refreshTimer?.Dispose();
             _images.Dispose();
             _downloadedCover?.Dispose();
+            _downloadedDiscordAvatar?.Dispose();
             _appImage.Dispose();
         }
 
@@ -156,7 +160,39 @@ internal sealed class DashboardForm : Form
             BackColor = SidebarColor
         };
         nav.Controls.Add(NavButton("Accueil", "⌂"));
-        nav.Controls.Add(NavButton("Paramètres", "⚙"));
+        var settingsNavigation = new TableLayoutPanel
+        {
+            Width = 196,
+            Height = 48,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = SidebarColor,
+            Margin = new Padding(0, 4, 0, 2)
+        };
+        settingsNavigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        settingsNavigation.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
+        var settingsButton = NavButton("Paramètres", "⚙");
+        settingsButton.Dock = DockStyle.Fill;
+        settingsButton.Width = 148;
+        settingsButton.Margin = new Padding(0);
+        settingsNavigation.Controls.Add(settingsButton, 0, 0);
+        _discordAccountButton = new Button
+        {
+            Text = "◉",
+            AccessibleName = "Connexion Discord",
+            Dock = DockStyle.Fill,
+            Margin = new Padding(3, 4, 0, 4),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = SidebarColor,
+            ForeColor = Color.FromArgb(159, 125, 255),
+            Cursor = Cursors.Hand,
+            Font = new Font("Segoe UI Semibold", 13F),
+            ImageAlign = ContentAlignment.MiddleCenter
+        };
+        _discordAccountButton.FlatAppearance.BorderSize = 0;
+        _discordAccountButton.Click += (_, _) => ShowDiscordAccountMenu();
+        settingsNavigation.Controls.Add(_discordAccountButton, 1, 0);
+        nav.Controls.Add(settingsNavigation);
 
         var statusCard = new RoundedPanel
         {
@@ -489,9 +525,141 @@ internal sealed class DashboardForm : Form
         }
 
         _discordState.Text = snapshot.DiscordConnected ? "Discord connecté" : "Connexion Discord";
-        _discordSubstate.Text = snapshot.DiscordConnected ? "Compte Discord Desktop détecté" : "Clique ici pour ouvrir Discord Desktop";
+        _discordSubstate.Text = snapshot.DiscordConnected
+            ? string.IsNullOrWhiteSpace(snapshot.DiscordAccount?.DisplayName)
+                ? "Compte Discord Desktop détecté"
+                : $"Connecté : {snapshot.DiscordAccount.DisplayName}"
+            : _settings.DiscordConnectionEnabled
+                ? "Clique ici pour ouvrir Discord Desktop"
+                : "Connexion désactivée — clique sur le logo Discord";
+        UpdateDiscordAccountButton(snapshot);
         _deezerState.Text = snapshot.DeezerDetected ? "Deezer détecté" : "Deezer en attente";
         _deezerSubstate.Text = snapshot.StatusText;
+    }
+
+    private void UpdateDiscordAccountButton(PresenceSnapshot snapshot)
+    {
+        if (_discordAccountButton is null)
+        {
+            return;
+        }
+
+        var account = snapshot.DiscordAccount;
+        _discordAccountButton.AccessibleName = snapshot.DiscordConnected
+            ? $"Compte Discord {account?.DisplayName ?? string.Empty}".Trim()
+            : "Connecter Discord Desktop";
+
+        if (account is not null && Uri.TryCreate(account.AvatarUrl, UriKind.Absolute, out var avatarUri))
+        {
+            _ = LoadDiscordAvatarAsync(avatarUri);
+            return;
+        }
+
+        SetFallbackDiscordAvatar(snapshot.DiscordConnected);
+    }
+
+    private async Task LoadDiscordAvatarAsync(Uri uri)
+    {
+        var url = uri.AbsoluteUri;
+        if (url == _loadedDiscordAvatarUrl)
+        {
+            return;
+        }
+
+        _loadedDiscordAvatarUrl = url;
+        try
+        {
+            var bytes = await _images.GetByteArrayAsync(uri);
+            await using var stream = new MemoryStream(bytes);
+            using var source = Image.FromStream(stream);
+            var avatar = CreateCircularAvatar(source, 28);
+            if (IsDisposed || _loadedDiscordAvatarUrl != url)
+            {
+                avatar.Dispose();
+                return;
+            }
+
+            BeginInvoke(() =>
+            {
+                var previous = _downloadedDiscordAvatar;
+                _downloadedDiscordAvatar = avatar;
+                _discordAccountButton.Text = string.Empty;
+                _discordAccountButton.Image = avatar;
+                previous?.Dispose();
+            });
+        }
+        catch
+        {
+            if (_loadedDiscordAvatarUrl == url)
+            {
+                SetFallbackDiscordAvatar(connected: true);
+            }
+        }
+    }
+
+    private void SetFallbackDiscordAvatar(bool connected)
+    {
+        _loadedDiscordAvatarUrl = null;
+        if (_discordAccountButton is null)
+        {
+            return;
+        }
+
+        _discordAccountButton.Image = null;
+        _discordAccountButton.Text = connected ? "●" : "◉";
+        _downloadedDiscordAvatar?.Dispose();
+        _downloadedDiscordAvatar = null;
+    }
+
+    private static Bitmap CreateCircularAvatar(Image source, int size)
+    {
+        var result = new Bitmap(size, size);
+        using var graphics = Graphics.FromImage(result);
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        using var path = new GraphicsPath();
+        path.AddEllipse(0, 0, size - 1, size - 1);
+        graphics.SetClip(path);
+        graphics.DrawImage(source, 0, 0, size, size);
+        return result;
+    }
+
+    private void ShowDiscordAccountMenu()
+    {
+        var snapshot = _getSnapshot();
+        if (!snapshot.DiscordConnected)
+        {
+            if (!_settings.DiscordConnectionEnabled)
+            {
+                Save(_settings with { DiscordConnectionEnabled = true });
+            }
+
+            OpenDiscordDesktop();
+            return;
+        }
+
+        var menu = new ContextMenuStrip
+        {
+            BackColor = CardColor,
+            ForeColor = Color.White,
+            ShowImageMargin = false,
+            Font = new Font("Segoe UI", 9.5F)
+        };
+        var displayName = string.IsNullOrWhiteSpace(snapshot.DiscordAccount?.DisplayName)
+            ? "Compte Discord connecté"
+            : snapshot.DiscordAccount.DisplayName;
+        menu.Items.Add(new ToolStripMenuItem(displayName) { Enabled = false });
+        if (!string.IsNullOrWhiteSpace(snapshot.DiscordAccount?.Username))
+        {
+            menu.Items.Add(new ToolStripMenuItem($"@{snapshot.DiscordAccount.Username}") { Enabled = false });
+        }
+
+        menu.Items.Add(new ToolStripSeparator());
+        var disconnect = new ToolStripMenuItem("Se déconnecter de Deezer Presence");
+        disconnect.Click += (_, _) => Save(_settings with { DiscordConnectionEnabled = false });
+        menu.Items.Add(disconnect);
+        menu.Closed += (_, _) => menu.Dispose();
+        menu.Show(_discordAccountButton, new Point(0, _discordAccountButton.Height));
     }
 
     private async Task LoadCoverAsync(Uri? uri)

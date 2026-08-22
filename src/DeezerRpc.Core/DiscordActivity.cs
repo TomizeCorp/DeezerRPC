@@ -10,6 +10,10 @@ public sealed class DiscordActivity
     [JsonPropertyName("details")]
     public required string Details { get; init; }
 
+    [JsonPropertyName("details_url")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DetailsUrl { get; init; }
+
     [JsonPropertyName("state")]
     public required string State { get; init; }
 
@@ -45,6 +49,10 @@ public sealed class DiscordAssets
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? LargeText { get; init; }
 
+    [JsonPropertyName("large_url")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LargeUrl { get; init; }
+
     [JsonPropertyName("small_image")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SmallImage { get; init; }
@@ -52,6 +60,10 @@ public sealed class DiscordAssets
     [JsonPropertyName("small_text")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SmallText { get; init; }
+
+    [JsonPropertyName("small_url")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SmallUrl { get; init; }
 }
 
 public sealed class DiscordButton

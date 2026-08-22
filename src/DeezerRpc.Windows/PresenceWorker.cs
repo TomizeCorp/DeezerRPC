@@ -4,7 +4,7 @@ namespace DeezerRpc.Windows;
 
 internal sealed class PresenceWorker : IAsyncDisposable
 {
-    private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(3);
 
     private readonly AppSettings _settings;
     private readonly Action<PresenceSnapshot> _reportSnapshot;
@@ -43,6 +43,12 @@ internal sealed class PresenceWorker : IAsyncDisposable
             }
         }
 
+        if (_presenceWasSet)
+        {
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await TryClearAsync(cleanupTimeout.Token);
+        }
+
         _catalog.Dispose();
         await _discord.DisposeAsync();
         _stop.Dispose();
@@ -74,6 +80,11 @@ internal sealed class PresenceWorker : IAsyncDisposable
 
     private async Task UpdateOnceAsync(CancellationToken cancellationToken)
     {
+        if (_settings.DiscordConnectionEnabled)
+        {
+            await EnsureDiscordConnectedAsync(cancellationToken);
+        }
+
         var rawTrack = await _mediaSource.GetCurrentAsync(_settings.EnableBrowserDetection, cancellationToken);
         if (rawTrack is null || rawTrack.Status == PlaybackStatus.Stopped)
         {
@@ -132,6 +143,13 @@ internal sealed class PresenceWorker : IAsyncDisposable
             return;
         }
 
+        if (!_settings.DiscordConnectionEnabled)
+        {
+            _lastPublishedTrack = track;
+            Report("Discord déconnecté de Deezer Presence", track);
+            return;
+        }
+
         var now = DateTimeOffset.UtcNow;
         var fingerprint = string.Join('|',
             track.Identity,
@@ -170,13 +188,31 @@ internal sealed class PresenceWorker : IAsyncDisposable
         }
     }
 
+    private async Task EnsureDiscordConnectedAsync(CancellationToken cancellationToken)
+    {
+        if (_discord.IsConnected || DateTimeOffset.UtcNow - _lastDiscordAttempt < ReconnectInterval)
+        {
+            return;
+        }
+
+        _lastDiscordAttempt = DateTimeOffset.UtcNow;
+        try
+        {
+            await _discord.ConnectAsync(cancellationToken);
+        }
+        catch (IOException)
+        {
+            // The worker retries automatically; Deezer detection must continue meanwhile.
+        }
+    }
+
     private async Task TryClearAsync(CancellationToken cancellationToken)
     {
         try
         {
             await _discord.ClearActivityAsync(cancellationToken);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or OperationCanceledException)
         {
             // Discord may already be closed; there is nothing left to clear locally.
         }
@@ -192,6 +228,7 @@ internal sealed class PresenceWorker : IAsyncDisposable
             StatusText = status,
             Track = track ?? _lastPublishedTrack,
             DiscordConnected = _discord.IsConnected,
+            DiscordAccount = _discord.Account,
             UpdatedAt = DateTimeOffset.UtcNow
         });
 }

@@ -28,6 +28,32 @@ internal sealed class DiscordRpcClient : IAsyncDisposable
     public DiscordRpcClient(string applicationId) => _applicationId = applicationId;
 
     public bool IsConnected => _pipe?.IsConnected == true;
+    public DiscordAccountProfile? Account { get; private set; }
+
+    public async Task ConnectAsync(CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        try
+        {
+            await EnsureConnectedAsync(timeout.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            ResetConnection();
+            throw new IOException("Discord n’a pas répondu dans le délai prévu.");
+        }
+        catch
+        {
+            ResetConnection();
+            throw;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
     public Task SetActivityAsync(DiscordActivity activity, CancellationToken cancellationToken) =>
         SendActivityAsync(activity, cancellationToken);
@@ -40,8 +66,7 @@ internal sealed class DiscordRpcClient : IAsyncDisposable
         await _gate.WaitAsync();
         try
         {
-            _pipe?.Dispose();
-            _pipe = null;
+            ResetConnection();
         }
         finally
         {
@@ -78,14 +103,12 @@ internal sealed class DiscordRpcClient : IAsyncDisposable
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            _pipe?.Dispose();
-            _pipe = null;
+            ResetConnection();
             throw new IOException("Discord n’a pas répondu dans le délai prévu.");
         }
         catch
         {
-            _pipe?.Dispose();
-            _pipe = null;
+            ResetConnection();
             throw;
         }
         finally
@@ -122,6 +145,7 @@ internal sealed class DiscordRpcClient : IAsyncDisposable
                 }
 
                 _pipe = candidate;
+                Account = ReadAccount(response.Payload);
                 return;
             }
             catch (TimeoutException)
@@ -136,6 +160,58 @@ internal sealed class DiscordRpcClient : IAsyncDisposable
 
         throw new IOException("Discord Desktop n’est pas démarré ou son canal RPC est indisponible.");
     }
+
+    private void ResetConnection()
+    {
+        _pipe?.Dispose();
+        _pipe = null;
+        Account = null;
+    }
+
+    private static DiscordAccountProfile? ReadAccount(string payload)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("data", out var data) ||
+                !data.TryGetProperty("user", out var user) ||
+                !user.TryGetProperty("id", out var idElement))
+            {
+                return null;
+            }
+
+            var userId = idElement.GetString() ?? string.Empty;
+            var username = ReadString(user, "username");
+            var displayName = ReadString(user, "global_name");
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                displayName = username;
+            }
+
+            var avatarHash = ReadString(user, "avatar");
+            var avatarUrl = string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(avatarHash)
+                ? string.Empty
+                : $"https://cdn.discordapp.com/avatars/{userId}/{avatarHash}.png?size=128";
+
+            return new DiscordAccountProfile
+            {
+                UserId = userId,
+                DisplayName = displayName,
+                Username = username,
+                AvatarUrl = avatarUrl
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string ReadString(JsonElement element, string propertyName) =>
+        element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString() ?? string.Empty
+            : string.Empty;
 
     private static async Task WriteFrameAsync(
         NamedPipeClientStream pipe,

@@ -6,6 +6,8 @@ L’Application ID `1540336569532031116` est intégré à DeezerRPC. L’utilisa
 
 Sur Windows, le bouton de connexion ouvre Discord Desktop et Deezer Presence détecte automatiquement le compte déjà connecté par le canal RPC local. Il n’existe donc aucun écran d’Application ID ou de token dans l’application.
 
+La connexion est tentée dès le démarrage et toutes les trois secondes si Discord vient seulement de s’ouvrir. Le bouton Discord à droite de `Paramètres` devient la photo du compte détecté ; il ouvre l’aperçu local du profil et permet de déconnecter uniquement Deezer Presence sans fermer la session Discord Desktop.
+
 Donnez à l’application un nom court, par exemple `Deezer`, car Discord affiche automatiquement ce nom au-dessus des deux lignes personnalisées.
 
 ## Android
@@ -32,4 +34,4 @@ Contrôlez les invariants suivants :
 - titre sur la première ligne personnalisée ;
 - artiste seul sur la seconde ligne Discord ; album séparé dans l’interface de Deezer Presence ;
 - progression Discord pendant la lecture, aucun chronomètre actif en pause ;
-- bouton ouvrant `https://www.deezer.com/track/...`.
+- bouton, titre, pochette et logo ouvrant `https://www.deezer.com/track/...` lorsque le lien direct est disponible.
