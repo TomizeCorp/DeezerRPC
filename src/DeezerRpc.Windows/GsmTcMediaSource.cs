@@ -1,6 +1,5 @@
 using DeezerRpc.Core;
 using System.Security.Cryptography;
-using System.Text;
 using Windows.Media.Control;
 using Windows.Storage.Streams;
 
@@ -8,12 +7,16 @@ namespace DeezerRpc.Windows;
 
 internal sealed class GsmTcMediaSource
 {
+    private static readonly TimeSpan ArtworkRefreshInterval = TimeSpan.FromSeconds(2);
+    private const int ArtworkFileLimit = 16;
+
     private static readonly string[] BrowserMarkers =
     [
         "chrome", "msedge", "firefox", "brave", "opera", "vivaldi", "arc"
     ];
 
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
+    private readonly Dictionary<string, ArtworkCacheEntry> _artworkCache = new(StringComparer.Ordinal);
 
     public async Task<NowPlayingTrack?> GetCurrentAsync(bool includeBrowsers, CancellationToken cancellationToken)
     {
@@ -91,26 +94,29 @@ internal sealed class GsmTcMediaSource
             .FirstOrDefault();
     }
 
-    private static async Task<Uri?> ReadThumbnailAsync(
+    private async Task<Uri?> ReadThumbnailAsync(
         GlobalSystemMediaTransportControlsSessionMediaProperties properties,
         string identity,
         CancellationToken cancellationToken)
     {
+        var now = DateTimeOffset.UtcNow;
+        _artworkCache.TryGetValue(identity, out var cached);
+        if (cached is not null &&
+            now - cached.CheckedAt < ArtworkRefreshInterval &&
+            IsReadableLocalArtwork(cached.Uri))
+        {
+            return cached.Uri;
+        }
+
         if (properties.Thumbnail is null)
         {
-            return null;
+            return CacheResult(identity, cached?.Uri, now);
         }
 
         var directory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "DeezerPresence",
             "artwork");
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..20];
-        var path = Path.Combine(directory, $"{hash}.img");
-        if (File.Exists(path) && new FileInfo(path).Length > 0)
-        {
-            return LocalArtworkUri(path);
-        }
 
         try
         {
@@ -132,16 +138,17 @@ internal sealed class GsmTcMediaSource
 
             var bytes = new byte[expected];
             reader.ReadBytes(bytes);
+            var hash = Convert.ToHexString(SHA256.HashData(bytes))[..24];
+            var path = Path.Combine(directory, $"{hash}.img");
             Directory.CreateDirectory(directory);
-            await File.WriteAllBytesAsync(path, bytes, cancellationToken);
-            foreach (var previous in Directory.EnumerateFiles(directory, "*.img"))
+            if (!File.Exists(path) || new FileInfo(path).Length == 0)
             {
-                if (!string.Equals(previous, path, StringComparison.OrdinalIgnoreCase))
-                {
-                    File.Delete(previous);
-                }
+                await File.WriteAllBytesAsync(path, bytes, cancellationToken);
             }
-            return LocalArtworkUri(path);
+
+            var uri = LocalArtworkUri(path);
+            PruneArtwork(directory, path);
+            return CacheResult(identity, uri, now);
         }
         catch (OperationCanceledException)
         {
@@ -149,10 +156,60 @@ internal sealed class GsmTcMediaSource
         }
         catch
         {
-            return null;
+            return CacheResult(identity, cached?.Uri, now);
+        }
+    }
+
+    private Uri? CacheResult(string identity, Uri? uri, DateTimeOffset checkedAt)
+    {
+        if (!IsReadableLocalArtwork(uri))
+        {
+            uri = null;
+        }
+
+        _artworkCache[identity] = new ArtworkCacheEntry(uri, checkedAt);
+        if (_artworkCache.Count > ArtworkFileLimit)
+        {
+            var oldest = _artworkCache
+                .OrderBy(pair => pair.Value.CheckedAt)
+                .Take(_artworkCache.Count - ArtworkFileLimit)
+                .Select(pair => pair.Key)
+                .ToArray();
+            foreach (var key in oldest)
+            {
+                _artworkCache.Remove(key);
+            }
+        }
+
+        return uri;
+    }
+
+    private static bool IsReadableLocalArtwork(Uri? uri) =>
+        uri is { IsFile: true } &&
+        File.Exists(uri.LocalPath) &&
+        new FileInfo(uri.LocalPath).Length > 0;
+
+    private static void PruneArtwork(string directory, string currentPath)
+    {
+        try
+        {
+            foreach (var previous in Directory
+                .EnumerateFiles(directory, "*.img")
+                .Where(path => !string.Equals(path, currentPath, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .Skip(ArtworkFileLimit - 1))
+            {
+                File.Delete(previous);
+            }
+        }
+        catch
+        {
+            // A stale cache file must never interrupt media detection.
         }
     }
 
     private static Uri LocalArtworkUri(string path) =>
         new UriBuilder(Uri.UriSchemeFile, string.Empty) { Path = path }.Uri;
+
+    private sealed record ArtworkCacheEntry(Uri? Uri, DateTimeOffset CheckedAt);
 }

@@ -25,10 +25,13 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
     private static readonly TimeSpan FailedPublishRetryInterval = TimeSpan.FromSeconds(4);
     private static readonly TimeSpan ProfileRefreshInterval = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan DiscordConnectionCheckInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan ArtworkRefreshInterval = TimeSpan.FromSeconds(2);
+    private const int ArtworkFileLimit = 16;
     private readonly CancellationTokenSource _stop = new();
     private readonly DiscordActivityBuilder _activityBuilder = new();
     private readonly DeezerCatalogClient _catalog = new();
     private readonly AndroidDiscordPresenceClient _discord = new();
+    private readonly Dictionary<string, ArtworkCacheEntry> _artworkCache = new(StringComparer.Ordinal);
     private Task? _monitorTask;
     private string? _lastFingerprint;
     private DateTimeOffset _lastPublishAttempt = DateTimeOffset.MinValue;
@@ -305,14 +308,18 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             if (System.Uri.TryCreate(value, UriKind.Absolute, out var remote) &&
                 remote.Scheme == System.Uri.UriSchemeHttps)
             {
+                CacheArtwork(identity, (remote, null), DateTimeOffset.UtcNow);
                 return (remote, null);
             }
         }
 
-        var localPath = ArtworkPath(identity);
-        if (localPath is not null && File.Exists(localPath) && new FileInfo(localPath).Length > 0)
+        var now = DateTimeOffset.UtcNow;
+        _artworkCache.TryGetValue(identity, out var cached);
+        if (cached is not null &&
+            now - cached.CheckedAt < ArtworkRefreshInterval &&
+            IsReadableLocalArtwork(cached.Cover.LocalUri))
         {
-            return (null, LocalArtworkUri(localPath));
+            return cached.Cover;
         }
 
         foreach (var value in uriValues)
@@ -326,10 +333,12 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
                 }
                 using var stream = ContentResolver?.OpenInputStream(androidUri);
                 using var bitmap = stream is null ? null : BitmapFactory.DecodeStream(stream);
-                var persisted = PersistArtwork(bitmap, identity);
+                var persisted = PersistArtwork(bitmap);
                 if (persisted is not null)
                 {
-                    return (null, persisted);
+                    var result = (PublicUri: (System.Uri?)null, LocalUri: persisted);
+                    CacheArtwork(identity, result, now);
+                    return result;
                 }
             }
             catch
@@ -346,48 +355,55 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             metadata.Description?.IconBitmap
         })
         {
-            var persisted = PersistArtwork(bitmap, identity);
+            var persisted = PersistArtwork(bitmap);
             if (persisted is not null)
             {
-                return (null, persisted);
+                var result = (PublicUri: (System.Uri?)null, LocalUri: persisted);
+                CacheArtwork(identity, result, now);
+                return result;
             }
         }
 
-        return (null, null);
+        (System.Uri? PublicUri, System.Uri? LocalUri) fallback = cached?.Cover ?? (null, null);
+        CacheArtwork(identity, fallback, now);
+        return fallback;
     }
 
-    private System.Uri? PersistArtwork(Bitmap? bitmap, string identity)
+    private System.Uri? PersistArtwork(Bitmap? bitmap)
     {
         if (bitmap is null)
         {
             return null;
         }
 
-        var path = ArtworkPath(identity);
-        if (path is null)
+        var directory = ArtworkDirectory();
+        if (directory is null)
         {
             return null;
         }
 
         try
         {
-            var directory = System.IO.Path.GetDirectoryName(path)!;
-            Directory.CreateDirectory(directory);
-            using (var output = File.Create(path))
+            byte[] bytes;
+            using (var output = new MemoryStream())
             {
                 if (!bitmap.Compress(Bitmap.CompressFormat.Jpeg!, 92, output))
                 {
                     return null;
                 }
+
+                bytes = output.ToArray();
             }
 
-            foreach (var previous in Directory.EnumerateFiles(directory, "*.jpg"))
+            var hash = Convert.ToHexString(SHA256.HashData(bytes))[..24];
+            var path = System.IO.Path.Combine(directory, $"{hash}.jpg");
+            Directory.CreateDirectory(directory);
+            if (!File.Exists(path) || new FileInfo(path).Length == 0)
             {
-                if (!string.Equals(previous, path, StringComparison.Ordinal))
-                {
-                    File.Delete(previous);
-                }
+                File.WriteAllBytes(path, bytes);
             }
+
+            PruneArtwork(directory, path);
             return LocalArtworkUri(path);
         }
         catch
@@ -396,7 +412,58 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
         }
     }
 
-    private string? ArtworkPath(string identity)
+    private void CacheArtwork(
+        string identity,
+        (System.Uri? PublicUri, System.Uri? LocalUri) cover,
+        DateTimeOffset checkedAt)
+    {
+        if (!IsReadableLocalArtwork(cover.LocalUri))
+        {
+            cover.LocalUri = null;
+        }
+
+        _artworkCache[identity] = new ArtworkCacheEntry(cover, checkedAt);
+        if (_artworkCache.Count <= ArtworkFileLimit)
+        {
+            return;
+        }
+
+        var oldest = _artworkCache
+            .OrderBy(pair => pair.Value.CheckedAt)
+            .Take(_artworkCache.Count - ArtworkFileLimit)
+            .Select(pair => pair.Key)
+            .ToArray();
+        foreach (var key in oldest)
+        {
+            _artworkCache.Remove(key);
+        }
+    }
+
+    private static bool IsReadableLocalArtwork(System.Uri? uri) =>
+        uri is { IsFile: true } &&
+        File.Exists(uri.LocalPath) &&
+        new FileInfo(uri.LocalPath).Length > 0;
+
+    private static void PruneArtwork(string directory, string currentPath)
+    {
+        try
+        {
+            foreach (var previous in Directory
+                .EnumerateFiles(directory, "*.jpg")
+                .Where(path => !string.Equals(path, currentPath, StringComparison.Ordinal))
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .Skip(ArtworkFileLimit - 1))
+            {
+                File.Delete(previous);
+            }
+        }
+        catch
+        {
+            // A stale cache file must never interrupt media detection.
+        }
+    }
+
+    private string? ArtworkDirectory()
     {
         var filesPath = FilesDir?.AbsolutePath;
         if (string.IsNullOrWhiteSpace(filesPath))
@@ -404,12 +471,15 @@ public sealed class DeezerNotificationListenerService : NotificationListenerServ
             return null;
         }
 
-        var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)))[..20];
-        return System.IO.Path.Combine(filesPath, "artwork", $"{hash}.jpg");
+        return System.IO.Path.Combine(filesPath, "artwork");
     }
 
     private static System.Uri LocalArtworkUri(string path) =>
         new System.UriBuilder(System.Uri.UriSchemeFile, string.Empty) { Path = path }.Uri;
+
+    private sealed record ArtworkCacheEntry(
+        (System.Uri? PublicUri, System.Uri? LocalUri) Cover,
+        DateTimeOffset CheckedAt);
 
     private void StartPersistentNotification()
     {

@@ -7,12 +7,15 @@ namespace DeezerRpc.Core;
 
 public sealed class DeezerCatalogClient : IDisposable
 {
+    private static readonly TimeSpan SuccessfulCacheDuration = TimeSpan.FromHours(6);
+    private static readonly TimeSpan FailedCacheDuration = TimeSpan.FromSeconds(30);
+
     private readonly HttpClient _httpClient = new()
     {
         BaseAddress = new Uri("https://api.deezer.com/"),
         Timeout = TimeSpan.FromSeconds(8)
     };
-    private readonly Dictionary<string, ResolvedDeezerTrack?> _cache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, CatalogCacheEntry> _cache = new(StringComparer.Ordinal);
 
     public DeezerCatalogClient() => _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("DeezerRPC/1.0");
 
@@ -21,12 +24,17 @@ public sealed class DeezerCatalogClient : IDisposable
         bool requireCatalogMatch,
         CancellationToken cancellationToken)
     {
-        if (!_cache.TryGetValue(track.Identity, out var resolved))
+        var now = DateTimeOffset.UtcNow;
+        if (!_cache.TryGetValue(track.Identity, out var cached) || cached.ExpiresAt <= now)
         {
-            resolved = await ResolveAsync(track, cancellationToken);
-            _cache[track.Identity] = resolved;
+            var refreshed = await ResolveAsync(track, cancellationToken);
+            cached = new CatalogCacheEntry(
+                refreshed,
+                now + (refreshed is null ? FailedCacheDuration : SuccessfulCacheDuration));
+            _cache[track.Identity] = cached;
         }
 
+        var resolved = cached.Track;
         if (resolved is null)
         {
             return requireCatalogMatch ? null : track;
@@ -258,6 +266,7 @@ public sealed class DeezerCatalogClient : IDisposable
     private static string SanitizeQueryValue(string value) => value.Replace('"', ' ').Trim();
 
     private sealed record ResolvedDeezerTrack(string Album, int DurationSeconds, Uri CoverUrl, Uri TrackUrl);
+    private sealed record CatalogCacheEntry(ResolvedDeezerTrack? Track, DateTimeOffset ExpiresAt);
 
     private sealed class SearchResponse
     {
