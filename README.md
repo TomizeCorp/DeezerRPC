@@ -23,12 +23,12 @@ Le mapping partagé est volontairement strict :
 - aucune `small_image` : la pochette reste seule, sans logo ni icône superposée ;
 - `timestamps.start/end` : progression rendue nativement par Discord pendant la lecture ;
 - barre pleine largeur `Écouter sur Deezer` sous le morceau : lien direct lorsqu’il est résolu, recherche titre/artiste sur Deezer en secours dans l’interface ;
-- le titre et la pochette sont également cliquables dans Discord et ouvrent le morceau — ou sa recherche Deezer de secours ;
+- la pochette est également cliquable dans Discord et ouvre le morceau — ou sa recherche Deezer de secours ; le titre reste volontairement non cliquable ;
 - l’application affiche le titre, puis l’artiste, puis l’album sur des lignes distinctes ; la ligne album disparaît lorsqu’elle n’est pas disponible.
 
 Sur Android, les logos de l’interface sont dessinés en monochrome et reprennent automatiquement la couleur du texte voisin. L’accès Discord se trouve à droite de `Paramètres` dans la navigation inférieure : une fois le compte détecté, sa photo ouvre un aperçu du profil et l’action `Se déconnecter`. L’ancienne carte d’état et l’ancien bouton `Connecter Discord` ont été retirés de l’accueil.
 
-La résolution de pochette vérifie l’album fourni par Deezer, accepte ses variantes légitimes (deluxe, remaster, collaborateurs) et relance une recherche élargie lorsque la recherche stricte ne renvoie rien. Elle gère également les résultats où Deezer ne renvoie que l’artiste principal — par exemple `David Guetta` pour un morceau crédité `David Guetta & Bebe Rexha` dans le lecteur.
+La résolution de pochette utilise des recherches simples compatibles avec l’API Deezer, puis vérifie localement le titre, l’artiste et l’album. Elle accepte les variantes légitimes (deluxe, remaster, collaborateurs) et relance une recherche élargie lorsque la première ne renvoie rien. Elle gère également les résultats où Deezer ne renvoie que l’artiste principal — par exemple `David Guetta` pour un morceau crédité `David Guetta & Bebe Rexha` dans le lecteur.
 
 Discord n’offre que deux lignes de texte personnalisables en plus du nom de l’application. L’artiste et l’album partagent donc la deuxième ligne. Les boutons ne sont visibles que par les autres utilisateurs qui consultent la présence, conformément au comportement Discord.
 

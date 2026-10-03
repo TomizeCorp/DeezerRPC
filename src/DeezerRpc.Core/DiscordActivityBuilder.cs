@@ -69,7 +69,7 @@ public sealed class DiscordActivityBuilder
         return new DiscordActivity
         {
             Details = Trim(track.Title.Trim(), TextLimit),
-            DetailsUrl = listenUrl,
+            DetailsUrl = null,
             State = Trim(state, TextLimit),
             Timestamps = timestamps,
             Assets = assets,

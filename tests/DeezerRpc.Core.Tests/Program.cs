@@ -28,7 +28,8 @@ Assert(activity.Assets?.LargeImage == playing.CoverUrl.AbsoluteUri, "La pochette
 Assert(activity.Assets?.SmallImage is null, "Aucune petite image ne doit être accolée à la pochette.");
 Assert(!json.Contains("small_image", StringComparison.Ordinal), "small_image ne doit jamais être transmis à Discord.");
 Assert(activity.Buttons is [{ Label: "Écouter sur Deezer" }], "Le bouton Deezer doit être présent.");
-Assert(activity.DetailsUrl == playing.TrackUrl.AbsoluteUri, "Le titre Discord doit ouvrir directement le morceau.");
+Assert(activity.DetailsUrl is null, "Le titre Discord ne doit pas être cliquable.");
+Assert(!json.Contains("details_url", StringComparison.Ordinal), "details_url ne doit jamais être transmis à Discord.");
 Assert(activity.Assets?.LargeUrl == playing.TrackUrl.AbsoluteUri, "La pochette Discord doit ouvrir directement le morceau.");
 var withSeparateLocalCover = builder.Build(
     playing with { LocalCoverUri = new Uri("file:///C:/exact-session-cover.jpg") },
@@ -50,7 +51,8 @@ var minimal = builder.Build(playing, now, new PresenceOptions
 Assert(minimal.State == "Alan Walker", "L’album ne doit jamais être répété à côté de l’artiste.");
 Assert(minimal.Timestamps is null, "La progression doit pouvoir être masquée.");
 Assert(minimal.Buttons is null, "Le bouton Deezer doit pouvoir être masqué.");
-Assert(minimal.DetailsUrl == playing.TrackUrl.AbsoluteUri && minimal.Assets?.LargeUrl == playing.TrackUrl.AbsoluteUri, "Le morceau doit rester cliquable même si le bouton est masqué.");
+Assert(minimal.DetailsUrl is null, "Le titre doit rester non cliquable dans tous les modes.");
+Assert(minimal.Assets?.LargeUrl == playing.TrackUrl.AbsoluteUri, "La pochette doit rester cliquable même si le bouton est masqué.");
 Assert(minimal.Assets?.LargeImage == playing.CoverUrl.AbsoluteUri, "La pochette doit rester la grande image dans tous les modes.");
 Assert(minimal.Assets?.SmallImage is null, "La pochette doit rester seule dans tous les modes.");
 
@@ -94,6 +96,18 @@ if (Environment.GetEnvironmentVariable("DEEZERRPC_LIVE_TESTS") == "1")
         CancellationToken.None);
     Assert(collaboration?.CoverUrl is not null, "Une collaboration David Guetta doit conserver sa pochette.");
     Assert(collaboration?.TrackUrl is not null, "Une collaboration David Guetta doit obtenir son lien Deezer.");
+
+    var classic = await catalog.EnrichAsync(
+        new NowPlayingTrack
+        {
+            Title = "La maison près de la fontaine",
+            Artist = "Nino Ferrer",
+            Status = PlaybackStatus.Playing
+        },
+        requireCatalogMatch: false,
+        CancellationToken.None);
+    Assert(classic?.CoverUrl is not null, "La recherche simple Deezer doit retrouver la pochette de Nino Ferrer.");
+    Assert(classic?.TrackUrl is not null, "La recherche simple Deezer doit retrouver le lien de Nino Ferrer.");
 }
 
 Console.WriteLine("Tous les tests DeezerRpc.Core ont réussi.");

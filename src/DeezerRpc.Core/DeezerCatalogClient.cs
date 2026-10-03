@@ -59,22 +59,47 @@ public sealed class DeezerCatalogClient : IDisposable
     {
         try
         {
-            var albumClause = string.IsNullOrWhiteSpace(track.Album)
-                ? string.Empty
-                : $" album:\"{SanitizeQueryValue(track.Album)}\"";
-            var baseQuery = $"track:\"{SanitizeQueryValue(track.Title)}\" artist:\"{SanitizeQueryValue(track.Artist)}\"";
-            var response = await SearchAsync(baseQuery + albumClause, cancellationToken);
-            var resolved = SelectBest(track, response, requireAlbumMatch: true);
-            if (resolved is null && !string.IsNullOrWhiteSpace(albumClause))
+            var title = SanitizeQueryValue(track.Title);
+            var artist = SanitizeQueryValue(track.Artist);
+            var album = SanitizeQueryValue(track.Album);
+            var titleArtistQuery = JoinQuery(title, artist);
+            SearchResponse? titleArtistResponse = null;
+            var queries = new[]
             {
-                // Deezer's strict search sometimes rejects equivalent album labels such as
-                // deluxe/remastered editions. Retry broadly, then validate the album locally.
-                response = await SearchAsync(baseQuery, cancellationToken);
-                resolved = SelectBest(track, response, requireAlbumMatch: true);
-                resolved ??= SelectBest(track, response, requireAlbumMatch: false);
+                JoinQuery(title, artist, album),
+                titleArtistQuery,
+                title
+            }
+            .Where(query => !string.IsNullOrWhiteSpace(query))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var query in queries)
+            {
+                var response = await SearchAsync(query, cancellationToken);
+                if (string.Equals(query, titleArtistQuery, StringComparison.OrdinalIgnoreCase))
+                {
+                    titleArtistResponse = response;
+                }
+                var resolved = SelectBest(track, response, requireAlbumMatch: true);
+                if (resolved is not null)
+                {
+                    return resolved;
+                }
+
+                if (string.IsNullOrWhiteSpace(track.Album))
+                {
+                    resolved = SelectBest(track, response, requireAlbumMatch: false);
+                    if (resolved is not null)
+                    {
+                        return resolved;
+                    }
+                }
             }
 
-            return resolved;
+            // Album labels can differ for deluxe, remastered and compilation releases.
+            // Keep the title/artist safeguards, then allow the best compatible release.
+            titleArtistResponse ??= await SearchAsync(titleArtistQuery, cancellationToken);
+            return SelectBest(track, titleArtistResponse, requireAlbumMatch: false);
         }
         catch (HttpRequestException)
         {
@@ -264,6 +289,9 @@ public sealed class DeezerCatalogClient : IDisposable
     }
 
     private static string SanitizeQueryValue(string value) => value.Replace('"', ' ').Trim();
+
+    private static string JoinQuery(params string[] values) =>
+        string.Join(' ', values.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private sealed record ResolvedDeezerTrack(string Album, int DurationSeconds, Uri CoverUrl, Uri TrackUrl);
     private sealed record CatalogCacheEntry(ResolvedDeezerTrack? Track, DateTimeOffset ExpiresAt);
