@@ -30,7 +30,8 @@ Assert(!json.Contains("small_image", StringComparison.Ordinal), "small_image ne 
 Assert(activity.Buttons is [{ Label: "Écouter sur Deezer" }], "Le bouton Deezer doit être présent.");
 Assert(activity.DetailsUrl is null, "Le titre Discord ne doit pas être cliquable.");
 Assert(!json.Contains("details_url", StringComparison.Ordinal), "details_url ne doit jamais être transmis à Discord.");
-Assert(activity.Assets?.LargeUrl == playing.TrackUrl.AbsoluteUri, "La pochette Discord doit ouvrir directement le morceau.");
+Assert(activity.Assets?.LargeUrl is null, "La pochette Discord ne doit pas être cliquable.");
+Assert(!json.Contains("large_url", StringComparison.Ordinal), "large_url ne doit jamais être transmis à Discord.");
 var withSeparateLocalCover = builder.Build(
     playing with { LocalCoverUri = new Uri("file:///C:/exact-session-cover.jpg") },
     now);
@@ -52,7 +53,7 @@ Assert(minimal.State == "Alan Walker", "L’album ne doit jamais être répété
 Assert(minimal.Timestamps is null, "La progression doit pouvoir être masquée.");
 Assert(minimal.Buttons is null, "Le bouton Deezer doit pouvoir être masqué.");
 Assert(minimal.DetailsUrl is null, "Le titre doit rester non cliquable dans tous les modes.");
-Assert(minimal.Assets?.LargeUrl == playing.TrackUrl.AbsoluteUri, "La pochette doit rester cliquable même si le bouton est masqué.");
+Assert(minimal.Assets?.LargeUrl is null, "La pochette doit rester non cliquable dans tous les modes.");
 Assert(minimal.Assets?.LargeImage == playing.CoverUrl.AbsoluteUri, "La pochette doit rester la grande image dans tous les modes.");
 Assert(minimal.Assets?.SmallImage is null, "La pochette doit rester seule dans tous les modes.");
 

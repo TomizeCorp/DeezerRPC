@@ -50,7 +50,7 @@ public sealed class DiscordActivityBuilder
         {
             LargeImage = largeImage,
             LargeText = largeText,
-            LargeUrl = listenUrl
+            LargeUrl = null
         };
 
         IReadOnlyList<DiscordButton>? buttons = null;

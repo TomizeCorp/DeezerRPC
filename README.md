@@ -23,7 +23,7 @@ Le mapping partagé est volontairement strict :
 - aucune `small_image` : la pochette reste seule, sans logo ni icône superposée ;
 - `timestamps.start/end` : progression rendue nativement par Discord pendant la lecture ;
 - barre pleine largeur `Écouter sur Deezer` sous le morceau : lien direct lorsqu’il est résolu, recherche titre/artiste sur Deezer en secours dans l’interface ;
-- la pochette est également cliquable dans Discord et ouvre le morceau — ou sa recherche Deezer de secours ; le titre reste volontairement non cliquable ;
+- ni le titre ni la pochette ne sont cliquables dans Discord ; seul le bouton « Écouter sur Deezer » ouvre le morceau — ou sa recherche Deezer de secours ;
 - l’application affiche le titre, puis l’artiste, puis l’album sur des lignes distinctes ; la ligne album disparaît lorsqu’elle n’est pas disponible.
 
 Sur Android, les logos de l’interface sont dessinés en monochrome et reprennent automatiquement la couleur du texte voisin. L’accès Discord se trouve à droite de `Paramètres` dans la navigation inférieure : une fois le compte détecté, sa photo ouvre un aperçu du profil et l’action `Se déconnecter`. L’ancienne carte d’état et l’ancien bouton `Connecter Discord` ont été retirés de l’accueil.
